@@ -141,7 +141,9 @@ public class Restaurant<C,D> extends Distribution<D> implements Cloneable {
 
     @Override
     public Restaurant<C,D> clone() {
-        return new Restaurant<C,D>(concentration,discount,base,(HashMap<C,Table<D>>)customerToTables.clone());
+        // Note that this is a *shallow* copy.
+        // Use cloneCustomers and swapTables to make a deep copy of customerToTables
+        return new Restaurant<C,D>(concentration,discount,base,customerToTables);
     }
 
     // A method which replaces every key in customerToTables with a clone, only used for cloning an HPYP.
@@ -149,6 +151,7 @@ public class Restaurant<C,D> extends Distribution<D> implements Cloneable {
     public HashMap<C,C> cloneCustomers() {
         boolean begin = true;
         HashMap<C,C> map = new HashMap<C,C>();
+        HashMap<C,Table<D>> newCtoT = new HashMap<C,Table<D>>();
         for (C c : customerToTables.keySet()) {
             if(begin) {
                 if (c instanceof Table) { // Check the first key in the iterator to see if it's a type with public clone method
@@ -159,20 +162,23 @@ public class Restaurant<C,D> extends Distribution<D> implements Cloneable {
             }
             Table t = (Table)c;
             Table u = t.clone();
-            Table<D> v = customerToTables.remove(c);
-            customerToTables.put((C)u, v);
+            Table<D> v = customerToTables.get(c);
+            newCtoT.put((C)u, v);
             map.put((C)t, (C)u);
         }
+        customerToTables = newCtoT;
         return map;
     }
 
     // Also for cloning an HPYP, but for the tables of a low-level restaurant
     // rather than customers at high level restaurant.  Uses output of cloneCustomers()
     public void swapTables(HashMap<Table<D>,Table<D>> map) {
+        HashMap<C,Table<D>> newCtoT = new HashMap<C,Table<D>>();
         for (C c : customerToTables.keySet()) {
-            Table<D> t = customerToTables.remove(c);
-            customerToTables.put(c, map.get(t));
+            Table<D> t = customerToTables.get(c);
+            newCtoT.put(c, map.get(t));
         }
+        customerToTables = newCtoT;
     }
 
     // Be careful with this one!  Again used only for PDIA clone method.
