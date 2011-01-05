@@ -50,12 +50,11 @@ public class Main {
             PDIA pdia = new PDIA(data,nTrain);
             System.out.println(pdia.trainingLogLikelihood());
             System.out.println(pdia.numStates());
-            System.out.println(pdia.testingLogLikelihood());
-            System.out.println(pdia.numStates());
+            PDIA clone = pdia.clone();
         } catch (Exception e) {
             e.printStackTrace();
         }
-
+        Restaurant e = new Restaurant(1,0,new Geometric(0.001));
     }
 
 }

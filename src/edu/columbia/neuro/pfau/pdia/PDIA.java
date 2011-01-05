@@ -7,13 +7,12 @@ package edu.columbia.neuro.pfau.pdia;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Set;
 
 /**
  *
  * @author davidpfau
  */
-public class PDIA {
+public class PDIA implements Cloneable {
 
     private HashMap<Pair,Integer> delta;
     private double alpha;
@@ -26,7 +25,21 @@ public class PDIA {
     private ArrayList<ArrayList<Integer>> testingData;
 
     private ArrayList<Restaurant<Integer,Integer>> restaurants; // Maps a symbol in the alphabet to the corresponding restaurant
-    private Restaurant<Table<Integer,Integer>,Integer> top;
+    private Restaurant<Table<Integer>,Integer> top;
+
+    public PDIA() {
+        delta = new HashMap<Pair,Integer>();
+        alpha = 1.0;
+        alpha0 = 1.0;
+        beta = 1.0;
+        numSymbols = 0;
+        alphabet = new ArrayList<Object>();
+        top = new Restaurant<Table<Integer>,Integer>(alpha0,0,new Geometric(0.001));
+
+        trainingData = new ArrayList<ArrayList<Integer>>();
+        testingData = new ArrayList<ArrayList<Integer>>();
+        restaurants = new ArrayList<Restaurant<Integer,Integer>>();
+    }
 
     public PDIA(ArrayList<ArrayList<Object>> data, int nTrain) {
         delta = new HashMap<Pair,Integer>();
@@ -35,7 +48,7 @@ public class PDIA {
         beta = 1.0;
         numSymbols = 0;
         alphabet = new ArrayList<Object>();
-        top = new Restaurant<Table<Integer,Integer>,Integer>(alpha0,0,new Geometric(0.001));
+        top = new Restaurant<Table<Integer>,Integer>(alpha0,0,new Geometric(0.001));
 
         trainingData = new ArrayList<ArrayList<Integer>>();
         testingData = new ArrayList<ArrayList<Integer>>();
@@ -136,6 +149,34 @@ public class PDIA {
     //number of states, counting the zero state
     public int numStates() {
         return top.dishes() + 1;
+    }
+
+    @Override
+    public PDIA clone() {
+        PDIA p = new PDIA();
+        p.alpha     = this.alpha;
+        p.alpha0    = this.alpha0;
+        p.beta      = this.beta;
+        p.alphabet  = this.alphabet;
+        p.numSymbols = this.numSymbols;
+
+        p.trainingData = this.trainingData;
+        p.testingData  = this.testingData; // cloning ought not to matter since this isn't really mutable
+
+        p.top = this.top.clone();
+        HashMap<Table<Integer>,Table<Integer>> tableMap = top.cloneCustomers();
+
+        p.restaurants = new ArrayList<Restaurant<Integer,Integer>>();
+        for (Restaurant r : this.restaurants) {
+            Restaurant<Integer,Integer> s = (Restaurant<Integer,Integer>)r.clone();
+            s.swapTables(tableMap);
+            s.setBaseDistribution(p.top);
+            p.restaurants.add(s);
+        }
+
+        p.delta = (HashMap<Pair,Integer>)delta.clone();
+
+        return p;
     }
 
     private class Pair {

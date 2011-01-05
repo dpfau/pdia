@@ -5,24 +5,39 @@
 
 package edu.columbia.neuro.pfau.pdia;
 
-import java.util.ArrayList;
-
 /**
  *
  * @author davidpfau
  */
-public class Table<Customer,Dish> {
-    private Dish dish;
-    private ArrayList<Customer> customers;
+public class Table<D> implements Cloneable {
+    private D dish;
+    private int customers;
 
-    public Table(Dish d) {
-        customers = new ArrayList<Customer>();
+    public Table(D d) {
+        customers = 0;
         dish = d;
     }
 
-    public int customers() { return customers.size(); }
-    public Dish dish() { return dish; }
-    public void add(Customer c) { customers.add(c); }
-    public void remove(Customer c) { customers.remove(c); }
-    public void set(Dish d) { dish = d; }
+    public int customers() { return customers; }
+    public D dish() { return dish; }
+    public void add() { customers++; }
+    public void remove() { if (customers > 0) {customers--;} }
+    public void set(D d) { dish = d; }
+
+    @Override
+    public Table<D> clone() {
+        Table<D> t = new Table<D>(dish);
+        t.customers = this.customers;
+        return t;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (o instanceof Table) {
+            Table<D> t = (Table<D>)o;
+            return t.dish() == dish && t.customers() == customers;
+        } else {
+            return false;
+        }
+    }
 }

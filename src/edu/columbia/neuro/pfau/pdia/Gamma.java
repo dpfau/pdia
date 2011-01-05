@@ -17,7 +17,7 @@ package edu.columbia.neuro.pfau.pdia;
  *
  *  Uses Lanczos approximation formula. See Numerical Recipes 6.1.
  *
- * 
+ *  Copyright 2007, Robert Sedgewick and Kevin Wayne
  *
  *************************************************************************/
 
