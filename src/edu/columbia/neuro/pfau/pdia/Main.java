@@ -19,8 +19,12 @@ public class Main {
                 data.add(foo); //It's shit like this that makes me wish this were Python.
             }
             PDIA pdia = new PDIA(data,100);
-            PDIA pdia2 = pdia.clone();
-            pdia.clear();
+            for (int i = 0; i < 100; i++) {
+                System.out.println(pdia.trainingLogLikelihood() + ", " + pdia.testingLogLikelihood());
+                pdia = PDIA.sample(pdia);
+            }
+            //PDIA pdia2 = pdia.clone();
+            //pdia.clear();
             //pdia2.clear();
             System.out.println("OK!");
         } catch (java.io.IOException e) {

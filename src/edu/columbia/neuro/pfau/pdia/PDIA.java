@@ -7,6 +7,7 @@ package edu.columbia.neuro.pfau.pdia;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Set;
 
 /**
  *
@@ -91,8 +92,7 @@ public class PDIA implements Cloneable {
         }
     }
 
-    public double dataLogLikelihood(ArrayList<ArrayList<Integer>> data) {
-        HashMap<Pair,Integer> counts = count(data);
+    public double dataLogLikelihood(HashMap<Pair,Integer> counts) {
         HashMap<Integer,Integer> stateCounts = stateCount(counts);
         double logLike = 0.0;
         for (Integer i : counts.values()) {
@@ -105,11 +105,11 @@ public class PDIA implements Cloneable {
     }
 
     public double trainingLogLikelihood() {
-        return dataLogLikelihood(trainingData);
+        return dataLogLikelihood(count(trainingData));
     }
 
     public double testingLogLikelihood() {
-        return dataLogLikelihood(testingData);
+        return dataLogLikelihood(count(testingData));
     }
 
     public HashMap<Pair,Integer> count(ArrayList<ArrayList<Integer>> data) {
@@ -127,6 +127,14 @@ public class PDIA implements Cloneable {
             }
         }
         return counts;
+    }
+
+    public HashMap<Pair,Integer> trainCount() { // Hacky, but leads to important speedup because we don't need to repeat calls to count
+        return count(trainingData);
+    }
+
+    public HashMap<Pair,Integer> testCount() {
+        return count(testingData);
     }
 
     public HashMap<Integer,Integer> stateCount(HashMap<Pair,Integer> counts) {
@@ -149,6 +157,30 @@ public class PDIA implements Cloneable {
     //number of states, counting the zero state
     public int numStates() {
         return top.dishes() + 1;
+    }
+
+    public static PDIA sample(PDIA p1) {
+        Set<Pair> pairs = p1.delta.keySet();
+        HashMap<Pair,Integer> cts1 = p1.trainCount();
+        for (Pair p : pairs) {
+            PDIA p2 = p1.clone();
+            p2.clear(p);
+            HashMap<Pair,Integer> cts2 = p2.trainCount();
+            if ( p2.dataLogLikelihood(cts2) - p1.dataLogLikelihood(cts1) > Math.log(Math.random()) ) {
+                ArrayList<Pair> empty = new ArrayList<Pair>();
+                for (Pair q : p2.delta.keySet()) {
+                    if (!cts2.containsKey(q)) { // If the count for that state/symbol pair is zero
+                        empty.add(q);
+                    }
+                }
+                for (Pair q : empty) { // Avoids concurrent modification problems
+                    p2.clear(q);
+                }
+                p1 = p2;
+                cts1 = cts2;
+            }
+        }
+        return p1;
     }
 
     @Override
@@ -185,6 +217,11 @@ public class PDIA implements Cloneable {
             assert b : "Cleared customer that wasn't in the restaurant!";
         }
         delta.clear();
+    }
+
+    public void clear(Pair p) {
+        restaurants.get(p.symbol()).unseat(p.state());
+        delta.remove(p);
     }
 
     private class Pair {
