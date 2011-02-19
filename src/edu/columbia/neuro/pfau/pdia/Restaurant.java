@@ -5,6 +5,7 @@
 
 package edu.columbia.neuro.pfau.pdia;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 
@@ -43,7 +44,8 @@ public class Restaurant<C,D> extends Distribution<D> implements Cloneable {
         base = h;
 
         customers = t.size();
-        tables = t.values().size();
+        HashSet tt = new HashSet(t.values());
+        tables = tt.size();
 
         customerToTables = t;
     }
@@ -65,23 +67,45 @@ public class Restaurant<C,D> extends Distribution<D> implements Cloneable {
         return n;
     }
 
+    // Returns array list of *unique* tables, no duplicates
+    public ArrayList<Table<D>> tables() {
+        return new ArrayList<Table<D>>(new HashSet<Table<D>>(customerToTables.values()));
+    }
+
     private Table<D> sampleTable() {
-        double cumSum = 0.0;
-        HashMap<Double,Table<D>> sums = new HashMap<Double,Table<D>>();
-        for (Table<D> t : customerToTables.values()) {
-            cumSum += (double)(t.customers() - discount);
-            sums.put(cumSum,t);
-        }
-        assert sums.size() == tables : "Number of Tables is Inconsistent!";
-        cumSum += (double)(concentration + discount*tables);
-        double samp = cumSum*rnd.nextDouble();
-        double last = 0.0; // for debugging only
-        for (Double d : sums.keySet()) {
-            assert d >= last : "Iteration is not in order!";
-            if (d > samp) {
-                return sums.get(d);
+        ArrayList<Table<D>> uniqueTables = tables();
+        return crp(uniqueTables);
+    }
+
+    private Table<D> sampleTable(D d) {
+        ArrayList<Table<D>> uniqueTables = tables();
+        ArrayList<Table<D>> tablesServingD = new ArrayList<Table<D>>();
+        for (Table<D> t : uniqueTables) {
+            if ( t.dish() == d ) {
+                tablesServingD.add(t);
             }
-            last = d;
+        }
+        return crp(tablesServingD);
+    }
+
+    private Table<D> crp(ArrayList<Table<D>> uniqueTables) {
+        double cumSum = 0.0;
+        int nTables = uniqueTables.size();
+        double[] sums = new double[nTables];
+        for (int i = 0; i < nTables; i++) {
+            cumSum += (double)(uniqueTables.get(i).customers() - discount);
+            sums[i] = cumSum;
+        }
+        cumSum += (double)(concentration + discount*tables);
+        // NOTICE! We use tables above, rather than nTables, because this is
+        // used for conditional sampling from the given tables, rather than generic
+        // sampling from some arbitrary CRP.  The input uniqueTables is always
+        // some subset of the value set for customersToTables
+        double samp = cumSum*rnd.nextDouble();
+        for (int i = 0; i < nTables; i++) {
+            if (sums[i] > samp) {
+                return uniqueTables.get(i);
+            }
         }
         return null;
     }
@@ -108,7 +132,16 @@ public class Restaurant<C,D> extends Distribution<D> implements Cloneable {
     }
 
     public D seat(C c) {
-        Table<D> t = sampleTable();
+        Table<D> t = seatAtTable(c,sampleTable());
+        return t.dish();
+    }
+
+    // Only seats at tables serving the specified dish
+    public void seat(C c, D d) {
+        seatAtTable(c,sampleTable(d));
+    }
+
+    private Table<D> seatAtTable(C c, Table<D> t) {
         if (t == null) {
             tables++;
             if (base instanceof Restaurant) { // If this is an HPYP
@@ -123,19 +156,26 @@ public class Restaurant<C,D> extends Distribution<D> implements Cloneable {
         customerToTables.put(c, t);
         t.add();
         customers++;
-        return t.dish();
+        return t;
     }
 
-    public void unseat(C c) {
+    public boolean unseat(C c) {
         Table<D> t = customerToTables.remove(c);
         if (t != null) {
             customers--;
             t.remove();
-            if (t.customers() == 0 && base instanceof Restaurant) {
-                // garbage collection will take care of it unless it is part of an HPYP
-                Restaurant higher = (Restaurant)base;
-                higher.unseat(t);
+            if (t.customers() == 0) {
+                tables--;
+                if (base instanceof Restaurant) {
+                    // garbage collection will take care of it unless it is part of an HPYP
+                    Restaurant higher = (Restaurant)base;
+                    boolean b = higher.unseat(t);
+                    assert b : "Table not found in top-level restaurant!";
+                }
             }
+            return true;
+        } else {
+            return false;
         }
     }
 

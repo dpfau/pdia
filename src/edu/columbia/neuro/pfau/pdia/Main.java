@@ -1,60 +1,43 @@
-/*
- * To change this template, choose Tools | Templates
- * and open the template in the editor.
- */
-
 package edu.columbia.neuro.pfau.pdia;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.FileReader;
 import java.util.ArrayList;
 
-/**
- *
- * @author davidpfau
- */
 public class Main {
-
-    /**
-     * @param args the command line arguments
-     */
     public static void main(String[] args) {
-        String path1 = "/Users/davidpfau/Documents/Wood Group/aiw/aiw.train";
-        String path2 = "/Users/davidpfau/Documents/Wood Group/aiw/aiw.test";
-
-        String line = "";
-        ArrayList<ArrayList<Object>> data = new ArrayList<ArrayList<Object>>();
-
-        try {
-            BufferedReader in = new BufferedReader(new FileReader(path1));
-            while ((line = in.readLine()) != null) {
-                ArrayList<Object> chars = new ArrayList<Object>();
-                for (int i = 0; i < line.length(); i++) {
-                    chars.add(line.charAt(i));
+        try{
+            BufferedReader br = new BufferedReader(new FileReader(new File("/Users/davidpfau/Documents/Wood Group/aiw/aiw_small_sent_clean")));
+            ArrayList<ArrayList<Object>> data = new ArrayList<ArrayList<Object>>();
+            String line;
+            while((line = br.readLine()) != null) {
+                ArrayList<Object> foo = new ArrayList<Object>();
+                for (Character c : line.toCharArray()) {
+                    foo.add((Object)c);
                 }
-                data.add(chars);
+                data.add(foo); //It's shit like this that makes me wish this were Python.
             }
-            in.close();
-            int nTrain = data.size();
-
-            in = new BufferedReader(new FileReader(path2));
-            while ((line = in.readLine()) != null) {
-                ArrayList<Object> chars = new ArrayList<Object>();
-                for (int i = 0; i < line.length(); i++) {
-                    chars.add(line.charAt(i));
-                }
-                data.add(chars);
-            }
-            in.close();
-
-            PDIA pdia = new PDIA(data,nTrain);
-            System.out.println(pdia.trainingLogLikelihood());
-            System.out.println(pdia.numStates());
-            PDIA clone = pdia.clone();
-        } catch (Exception e) {
+            PDIA pdia = new PDIA(data,100);
+            PDIA pdia2 = pdia.clone();
+            pdia.clear();
+            //pdia2.clear();
+            System.out.println("OK!");
+        } catch (java.io.IOException e) {
             e.printStackTrace();
         }
-        Restaurant e = new Restaurant(1,0,new Geometric(0.001));
+        /*ArrayList<Restaurant<Integer,Integer>> restaurants = new ArrayList<Restaurant<Integer,Integer>>(); // Maps a symbol in the alphabet to the corresponding restaurant
+        Restaurant<Table<Integer>,Integer> top = new Restaurant<Table<Integer>,Integer>(1.0,0,new Geometric(0.001));
+        restaurants.add(new Restaurant<Integer,Integer>(1.0,0,top));
+        restaurants.add(new Restaurant<Integer,Integer>(1.0,0,top));
+        for (int i = 0; i < 100; i++) {
+            restaurants.get(0).seat(i);
+            restaurants.get(1).seat(i);
+        }
+        for (int i = 0; i < 100; i++) {
+            restaurants.get(0).unseat(i);
+            restaurants.get(1).unseat(i);
+        }
+        System.out.println("golly");*/
     }
-
 }

@@ -164,7 +164,7 @@ public class PDIA implements Cloneable {
         p.testingData  = this.testingData; // cloning ought not to matter since this isn't really mutable
 
         p.top = this.top.clone();
-        HashMap<Table<Integer>,Table<Integer>> tableMap = top.cloneCustomers();
+        HashMap<Table<Integer>,Table<Integer>> tableMap = p.top.cloneCustomers();
 
         p.restaurants = new ArrayList<Restaurant<Integer,Integer>>();
         for (Restaurant r : this.restaurants) {
@@ -177,6 +177,14 @@ public class PDIA implements Cloneable {
         p.delta = (HashMap<Pair,Integer>)delta.clone();
 
         return p;
+    }
+
+    public void clear() {
+        for (Pair p : delta.keySet()) {
+            boolean b = restaurants.get(p.symbol()).unseat(p.state());
+            assert b : "Cleared customer that wasn't in the restaurant!";
+        }
+        delta.clear();
     }
 
     private class Pair {
