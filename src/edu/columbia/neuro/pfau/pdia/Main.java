@@ -20,7 +20,7 @@ public class Main {
             }
             PDIA pdia = new PDIA(data,100);
             for (int i = 0; i < 100; i++) {
-                System.out.println(pdia.trainingLogLikelihood() + ", " + pdia.testingLogLikelihood());
+                System.out.println(pdia.trainingLogLikelihood() + ", " + pdia.numStates());
                 pdia = PDIA.sample(pdia);
             }
             //PDIA pdia2 = pdia.clone();

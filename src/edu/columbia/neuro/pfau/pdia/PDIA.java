@@ -82,13 +82,22 @@ public class PDIA implements Cloneable {
 
     public int next(int state, int symbol) {
         Pair p = new Pair(state,symbol);
-        if (delta.containsKey(p)) {
+        /*if (delta.containsKey(p)) {
             return delta.get(p);
         } else {
             Restaurant r = restaurants.get(symbol);
             Integer dish = (Integer)r.seat(state);
             delta.put(p, dish);
             return dish;
+        }*/
+        Integer nxt = delta.get(p);
+        if (nxt == null) {
+            Restaurant r = restaurants.get(symbol);
+            Integer dish = (Integer)r.seat(state);
+            delta.put(p, dish);
+            return dish;
+        } else {
+            return nxt;
         }
     }
 
@@ -110,6 +119,22 @@ public class PDIA implements Cloneable {
 
     public double testingLogLikelihood() {
         return dataLogLikelihood(count(testingData));
+    }
+
+    public int trainLen() {
+        int n = 0;
+        for (ArrayList a : trainingData) {
+            n += a.size();
+        }
+        return n;
+    }
+
+    public int testLen() {
+        int n = 0;
+        for (ArrayList a : testingData) {
+            n += a.size();
+        }
+        return n;
     }
 
     public HashMap<Pair,Integer> count(ArrayList<ArrayList<Integer>> data) {
@@ -178,6 +203,7 @@ public class PDIA implements Cloneable {
                 }
                 p1 = p2;
                 cts1 = cts2;
+                System.gc();
             }
         }
         return p1;
@@ -243,14 +269,13 @@ public class PDIA implements Cloneable {
             } else if ( o.getClass() != this.getClass() ) {
                 return false;
             } else {
-                Pair po = (Pair)o;
-                return this.state == po.state() && this.symbol == po.symbol();
+                return this.state == ((Pair)o).state() && this.symbol == ((Pair)o).symbol();
             }
         }
 
         @Override
         public int hashCode() {
-            return (int)(Math.pow(2, state) * Math.pow(3, symbol));
+            return 103*state + 107*symbol;
         }
     }
 }

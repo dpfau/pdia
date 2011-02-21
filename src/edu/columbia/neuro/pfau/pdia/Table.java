@@ -40,4 +40,13 @@ public class Table<D> implements Cloneable {
             return false;
         }
     }
+
+    /*@Override
+    public int hashCode() {
+        if (dish == null) {
+            return 42 + 73*customers;
+        } else {
+            return 37*dish.hashCode() + 73*customers;
+        }
+    }*/
 }
