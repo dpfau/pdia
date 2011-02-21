@@ -97,11 +97,13 @@ public class PDIA2 implements Cloneable {
         }
     }
 
-    public double dataLogLikelihood(HashMap<Pair,Integer> counts) {
+    public double dataLogLikelihood(HashMap<Integer,Integer>[] counts) {
         HashMap<Integer,Integer> stateCounts = stateCount(counts);
         double logLike = 0.0;
-        for (Integer i : counts.values()) {
-            logLike += Gamma.logGamma(i + beta/numSymbols) - Gamma.logGamma(beta/numSymbols);
+        for (int symbol = 0; symbol < counts.length; symbol++) {
+            for (Integer i : counts[symbol].values()) {
+                logLike += Gamma.logGamma(i + beta/numSymbols) - Gamma.logGamma(beta/numSymbols);
+            }
         }
         for (Integer j : stateCounts.values()) {
             logLike -= Gamma.logGamma(j + beta) - Gamma.logGamma(beta);
@@ -178,7 +180,11 @@ public class PDIA2 implements Cloneable {
     }
 
     public int numPairs() {
-        return delta.size();
+        int n = 0;
+        for (int i = 0; i < delta.length; i++) {
+            n += delta[i].size();
+        }
+        return n;
     }
 
     //number of states, counting the zero state
@@ -187,25 +193,29 @@ public class PDIA2 implements Cloneable {
     }
 
     public static PDIA2 sample(PDIA2 p1) {
-        Set<Pair> pairs = p1.delta.keySet();
-        HashMap<Pair,Integer> cts1 = p1.trainCount();
-        for (Pair p : pairs) {
-            PDIA2 p2 = p1.clone();
-            p2.clear(p);
-            HashMap<Pair,Integer> cts2 = p2.trainCount();
-            if ( p2.dataLogLikelihood(cts2) - p1.dataLogLikelihood(cts1) > Math.log(Math.random()) ) {
-                ArrayList<Pair> empty = new ArrayList<Pair>();
-                for (Pair q : p2.delta.keySet()) {
-                    if (!cts2.containsKey(q)) { // If the count for that state/symbol pair is zero
-                        empty.add(q);
+        HashMap<Integer,Integer>[] cts1 = p1.trainCount();
+        for (int symbol = 0; symbol < p1.numSymbols; symbol++) {
+            Set<Integer> states = p1.delta[symbol].keySet();
+            for (Integer state : states) {
+                PDIA2 p2 = p1.clone();
+                p2.clear(symbol,state);
+                HashMap<Integer, Integer>[] cts2 = p2.trainCount();
+                if (p2.dataLogLikelihood(cts2) - p1.dataLogLikelihood(cts1) > Math.log(Math.random())) {
+                    for (int j = 0; j < p2.numSymbols; j++) {
+                        ArrayList<Integer> empty = new ArrayList<Integer>();
+                        for (Integer q : p2.delta[j].keySet()) {
+                            if (!cts2[j].containsKey(q)) { // If the count for that state/symbol pair is zero
+                                empty.add(q);
+                            }
+                        }
+                        for (Integer q : empty) { // Avoids concurrent modification problems
+                            p2.clear(j,q);
+                        }
                     }
+                    p1 = p2;
+                    cts1 = cts2;
+                    System.gc();
                 }
-                for (Pair q : empty) { // Avoids concurrent modification problems
-                    p2.clear(q);
-                }
-                p1 = p2;
-                cts1 = cts2;
-                System.gc();
             }
         }
         return p1;
@@ -213,12 +223,11 @@ public class PDIA2 implements Cloneable {
 
     @Override
     public PDIA2 clone() {
-        PDIA2 p = new PDIA2();
+        PDIA2 p = new PDIA2(numSymbols);
         p.alpha     = this.alpha;
         p.alpha0    = this.alpha0;
         p.beta      = this.beta;
         p.alphabet  = this.alphabet;
-        p.numSymbols = this.numSymbols;
 
         p.trainingData = this.trainingData;
         p.testingData  = this.testingData; // cloning ought not to matter since this isn't really mutable
@@ -234,51 +243,27 @@ public class PDIA2 implements Cloneable {
             p.restaurants.add(s);
         }
 
-        p.delta = (HashMap<Pair,Integer>)delta.clone();
+        p.delta = new HashMap[numSymbols];
+        for (int i = 0; i < numSymbols; i++) {
+            p.delta[i] = (HashMap<Integer,Integer>)delta[i].clone();
+        }
 
         return p;
     }
 
     public void clear() {
-        for (Pair p : delta.keySet()) {
-            boolean b = restaurants.get(p.symbol()).unseat(p.state());
-            assert b : "Cleared customer that wasn't in the restaurant!";
-        }
-        delta.clear();
-    }
-
-    public void clear(Pair p) {
-        restaurants.get(p.symbol()).unseat(p.state());
-        delta.remove(p);
-    }
-
-    private class Pair {
-        private int state;
-        private int symbol;
-
-        public Pair(int a, int b) {
-            this.state = a;
-            this.symbol = b;
-        }
-
-        public int state() { return state; }
-        public int symbol() { return symbol; }
-
-        @Override
-        public boolean equals(Object o) {
-            if ( o == null ) {
-                return false;
-            } else if ( o.getClass() != this.getClass() ) {
-                return false;
-            } else {
-                return this.state == ((Pair)o).state() && this.symbol == ((Pair)o).symbol();
+        for (int i = 0; i < delta.length; i++) {
+            for (int j : delta[i].keySet()) {
+                boolean b = restaurants.get(i).unseat(j);
+                assert b : "Cleared customer that wasn't in the restaurant!";
             }
+            delta[i].clear();
         }
+    }
 
-        @Override
-        public int hashCode() {
-            return 103*state + 107*symbol;
-        }
+    public void clear(int symbol, int state) {
+        restaurants.get(symbol).unseat(state);
+        delta[symbol].remove(state);
     }
 }
 
