@@ -18,10 +18,10 @@ public class Main {
                 }
                 data.add(foo); //It's shit like this that makes me wish this were Python.
             }
-            PDIA2 pdia = new PDIA2(data,100,27);
+            PDIA pdia = new PDIA(data,100,27);
             for (int i = 0; i < 10000; i++) {
                 System.out.println(-pdia.trainingLogLikelihood()/pdia.trainLen()/Math.log(2) + ", " + pdia.numStates());
-                pdia = PDIA2.sample(pdia);
+                pdia = PDIA.sample(pdia);
             }
             //PDIA pdia2 = pdia.clone();
             //pdia.clear();
