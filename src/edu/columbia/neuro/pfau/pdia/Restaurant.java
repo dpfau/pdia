@@ -8,6 +8,7 @@ package edu.columbia.neuro.pfau.pdia;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedList;
 
 /**
  *
@@ -67,18 +68,26 @@ public class Restaurant<C,D> extends Distribution<D> implements Cloneable {
         return n;
     }
 
+    public int customers() {
+        return customers;
+    }
+
+    public int tables() {
+        return tables;
+    }
+
     // Returns array list of *unique* tables, no duplicates
-    public ArrayList<Table<D>> tables() {
+    public ArrayList<Table<D>> getTables() {
         return new ArrayList<Table<D>>(new HashSet<Table<D>>(customerToTables.values()));
     }
 
     private Table<D> sampleTable() {
-        ArrayList<Table<D>> uniqueTables = tables();
+        ArrayList<Table<D>> uniqueTables = getTables();
         return crp(uniqueTables);
     }
 
     private Table<D> sampleTable(D d) {
-        ArrayList<Table<D>> uniqueTables = tables();
+        ArrayList<Table<D>> uniqueTables = getTables();
         ArrayList<Table<D>> tablesServingD = new ArrayList<Table<D>>();
         for (Table<D> t : uniqueTables) {
             if ( t.dish() == d ) {
@@ -93,6 +102,7 @@ public class Restaurant<C,D> extends Distribution<D> implements Cloneable {
         int nTables = uniqueTables.size();
         double[] sums = new double[nTables];
         for (int i = 0; i < nTables; i++) {
+            assert uniqueTables.get(i) != null : "Have null table that should not be there";
             cumSum += (double)(uniqueTables.get(i).customers() - discount);
             sums[i] = cumSum;
         }
@@ -141,13 +151,26 @@ public class Restaurant<C,D> extends Distribution<D> implements Cloneable {
         seatAtTable(c,sampleTable(d));
     }
 
+    // For putting an observation back in after rejecting MH step
+    public void seat(C c, LinkedList<Table<D>> ts) {
+        Table<D> t = ts.remove();
+        if (!customerToTables.containsValue(t)) {
+            tables++;
+            if (!ts.isEmpty()) { // Should only be true if next level up is also Restaurant
+                ((Restaurant)base).seat(t,ts);
+            }
+        }
+        customerToTables.put(c, t);
+        t.add();
+        customers++;
+    }
+
     private Table<D> seatAtTable(C c, Table<D> t) {
         if (t == null) {
             tables++;
             if (base instanceof Restaurant) { // If this is an HPYP
-                Restaurant higher = (Restaurant)base;
                 t = new Table<D>(null);
-                D s = (D)higher.seat(t);
+                D s = (D)((Restaurant)base).seat(t);
                 t.set(s);
             } else {
                 t = new Table<D>(base.sample());
@@ -159,23 +182,25 @@ public class Restaurant<C,D> extends Distribution<D> implements Cloneable {
         return t;
     }
 
-    public boolean unseat(C c) {
+    public LinkedList<Table<D>> unseat(C c) {
         Table<D> t = customerToTables.remove(c);
         if (t != null) {
             customers--;
             t.remove();
+            LinkedList<Table<D>> ts = new LinkedList<Table<D>>();
+            ts.add(t);
             if (t.customers() == 0) {
                 tables--;
                 if (base instanceof Restaurant) {
                     // garbage collection will take care of it unless it is part of an HPYP
-                    Restaurant higher = (Restaurant)base;
-                    boolean b = higher.unseat(t);
-                    assert b : "Table not found in top-level restaurant!";
+                    LinkedList<Table<D>> tt = ((Restaurant)base).unseat(t);
+                    assert tt != null : "Table not found in top-level restaurant!";
+                    ts.addAll(tt);
                 }
             }
-            return true;
+            return ts;
         } else {
-            return false;
+            return null;
         }
     }
 

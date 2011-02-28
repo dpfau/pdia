@@ -7,6 +7,7 @@ package edu.columbia.neuro.pfau.pdia;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.Set;
 
 /**
@@ -34,9 +35,9 @@ public class PDIA implements Cloneable {
         for (int i = 0; i < nsym; i++) {
             delta[i] = new HashMap<Integer,Integer>();
         }
-        alpha = 1.0;
-        alpha0 = 1.0;
-        beta = 1.0;
+        alpha = 8.0;
+        alpha0 = 20.0;
+        beta = 6.0;
         alphabet = new ArrayList<Object>();
         top = new Restaurant<Table<Integer>,Integer>(alpha0,0,new Geometric(0.001));
 
@@ -50,9 +51,10 @@ public class PDIA implements Cloneable {
         delta = new HashMap[nsym];
         for (int i = 0; i < nsym; i++) {
             delta[i] = new HashMap<Integer,Integer>();
-        }        alpha = 1.0;
-        alpha0 = 1.0;
-        beta = 1.0;
+        }        
+        alpha = 8.0;
+        alpha0 = 20.0;
+        beta = 6.0;
         alphabet = new ArrayList<Object>();
         top = new Restaurant<Table<Integer>,Integer>(alpha0,0,new Geometric(0.001));
 
@@ -192,33 +194,134 @@ public class PDIA implements Cloneable {
         return top.dishes() + 1;
     }
 
-    public static PDIA sample(PDIA p1) {
+    public double alpha() {
+        return alpha;
+    }
+
+    public double alpha0() {
+        return alpha0;
+    }
+
+    public double beta() {
+        return beta;
+    }
+
+    /*public static PDIA sample(PDIA p1) {
         HashMap<Integer,Integer>[] cts1 = p1.trainCount();
+        double score1 = p1.dataLogLikelihood(cts1);
         for (int symbol = 0; symbol < p1.numSymbols; symbol++) {
             Set<Integer> states = p1.delta[symbol].keySet();
             for (Integer state : states) {
-                PDIA p2 = p1.clone();
-                p2.clear(symbol,state);
-                HashMap<Integer, Integer>[] cts2 = p2.trainCount();
-                if (p2.dataLogLikelihood(cts2) - p1.dataLogLikelihood(cts1) > Math.log(Math.random())) {
-                    for (int j = 0; j < p2.numSymbols; j++) {
-                        ArrayList<Integer> empty = new ArrayList<Integer>();
-                        for (Integer q : p2.delta[j].keySet()) {
-                            if (!cts2[j].containsKey(q)) { // If the count for that state/symbol pair is zero
-                                empty.add(q);
+                for (int x = 0; x < 5; x++) { // loop this step x times
+                    PDIA p2 = p1.clone();
+                    p2.clear(symbol, state);
+                    HashMap<Integer, Integer>[] cts2 = p2.trainCount();
+                    double score2 = p2.dataLogLikelihood(cts2);
+                    if (score2 - score1 > Math.log(Math.random())) {
+                        for (int j = 0; j < p2.numSymbols; j++) {
+                            ArrayList<Integer> empty = new ArrayList<Integer>();
+                            for (Integer q : p2.delta[j].keySet()) {
+                                if (!cts2[j].containsKey(q)) { // If the count for that state/symbol pair is zero
+                                    empty.add(q);
+                                }
+                            }
+                            for (Integer q : empty) { // Avoids concurrent modification problems
+                                p2.clear(j, q);
                             }
                         }
-                        for (Integer q : empty) { // Avoids concurrent modification problems
-                            p2.clear(j,q);
-                        }
+                        p1 = p2;
+                        cts1 = cts2;
+                        score1 = score2;
+                        System.gc();
                     }
-                    p1 = p2;
-                    cts1 = cts2;
-                    System.gc();
                 }
             }
         }
+        for (int x = 0; x < 5; x++) {
+            p1.sampleAlpha();
+            p1.sampleAlpha0();
+            p1.sampleBeta(score1, cts1);
+        }
         return p1;
+    }*/
+
+    public void sample() {
+        HashMap<Integer,Integer>[] cts1 = trainCount();
+        double score1 = dataLogLikelihood(cts1);
+        for (int i = 0; i < numSymbols; i++) {
+            Set<Integer> states = ((HashMap<Integer,Integer>)delta[i].clone()).keySet();
+            for (Integer p : states) {
+                for (int x = 0; x < 5; x++) { // loop this step x times
+                    LinkedList<Table<Integer>> ts = clear(i,p);
+                    HashMap<Integer, Integer>[] cts2 = trainCount();
+                    double score2 = dataLogLikelihood(cts2);
+                    boolean acc = score2 - score1 > Math.log(Math.random()); // accept the new sample?
+                    ArrayList<Integer> toClear = new ArrayList<Integer>();
+                    for (int j = 0; j < numSymbols; j++) {
+                        for (Integer q : delta[j].keySet()) {
+                            if (acc && !cts2[j].containsKey(q) || !acc && !cts1[j].containsKey(q)) { // Clear out the unused state/symbol pairs of whichever machine is accepted
+                                toClear.add(q);
+                            }
+                        }
+                        for (Integer q : toClear) {
+                            clear(j,q);
+                        }
+                    }
+                    if (acc) {
+                        cts1 = cts2;
+                        score1 = score2;
+                    } else {
+                        restaurants.get(i).seat(p,ts);
+                    }
+                }
+            }
+        }
+        for (int x = 0; x < 5; x++) {
+            sampleAlpha();
+            sampleAlpha0();
+            sampleBeta(score1, cts1);
+        }
+    }
+
+    public void sampleAlpha() {
+        double alphaNew = 0.5*top.rnd.nextGaussian() + alpha;
+        int k = 0;
+        int n = 0;
+        for (Restaurant r : restaurants) {
+            k += r.tables();
+            n += r.customers();
+        }
+        if (alphaNew > 0) {
+            double oldLikelihood = k*Math.log(alpha) + Gamma.logGamma(alpha) - Gamma.logGamma(alpha + n) - alpha;
+            double newLikelihood = k*Math.log(alphaNew) + Gamma.logGamma(alphaNew) - Gamma.logGamma(alphaNew + n) - alphaNew;
+            if (Math.log(Math.random()) < newLikelihood - oldLikelihood) {
+                alpha = alphaNew;
+            }
+        }
+    }
+
+    public void sampleAlpha0() { // This seems to be written very differently in the original Python implementation than any way I remember doing it.  Try both ways?
+        double alpha0New = 0.5*top.rnd.nextGaussian() + alpha0;
+        if (alpha0New > 0) {
+            double oldLikelihood = top.tables()*Math.log(alpha0) + Gamma.logGamma(alpha0) - Gamma.logGamma(alpha0 + top.customers()) - alpha0;
+            double newLikelihood = top.tables()*Math.log(alpha0New) + Gamma.logGamma(alpha0New) - Gamma.logGamma(alpha0New + top.customers()) - alpha0New;
+            if (Math.log(Math.random()) < newLikelihood - oldLikelihood) {
+                alpha0 = alpha0New;
+            }
+        }
+    }
+
+    public void sampleBeta(double score, HashMap<Integer,Integer>[] counts) {
+        double oldLikelihood = score - beta;
+        double oldBeta = beta;
+        beta += 0.5*top.rnd.nextGaussian();
+        if (beta > 0) {
+            if (Math.log(Math.random()) > dataLogLikelihood(counts) - beta - oldLikelihood) {
+                beta = oldBeta;
+            }
+        } else {
+            beta = oldBeta;
+        }
     }
 
     @Override
@@ -254,16 +357,16 @@ public class PDIA implements Cloneable {
     public void clear() {
         for (int i = 0; i < delta.length; i++) {
             for (int j : delta[i].keySet()) {
-                boolean b = restaurants.get(i).unseat(j);
-                assert b : "Cleared customer that wasn't in the restaurant!";
+                LinkedList<Table<Integer>> ts = restaurants.get(i).unseat(j);
+                assert ts != null : "Cleared customer that wasn't in the restaurant!";
             }
             delta[i].clear();
         }
     }
 
-    public void clear(int symbol, int state) {
-        restaurants.get(symbol).unseat(state);
+    public LinkedList<Table<Integer>> clear(int symbol, int state) {
         delta[symbol].remove(state);
+        return restaurants.get(symbol).unseat(state);
     }
 }
 

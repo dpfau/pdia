@@ -8,7 +8,7 @@ import java.util.ArrayList;
 public class Main {
     public static void main(String[] args) {
         try{
-            BufferedReader br = new BufferedReader(new FileReader(new File("/Users/davidpfau/Documents/Wood Group/aiw/aiw_small_sent_clean")));
+            BufferedReader br = new BufferedReader(new FileReader(new File(args[0])));
             ArrayList<ArrayList<Object>> data = new ArrayList<ArrayList<Object>>();
             String line;
             while((line = br.readLine()) != null) {
@@ -18,10 +18,11 @@ public class Main {
                 }
                 data.add(foo); //It's shit like this that makes me wish this were Python.
             }
-            PDIA pdia = new PDIA(data,100,27);
+            PDIA pdia = new PDIA(data,1,2);
             for (int i = 0; i < 10000; i++) {
-                System.out.println(-pdia.trainingLogLikelihood()/pdia.trainLen()/Math.log(2) + ", " + pdia.numStates());
-                pdia = PDIA.sample(pdia);
+                //System.out.println(-pdia.trainingLogLikelihood()/pdia.trainLen()/Math.log(2) + ", " + pdia.numStates() + ", " + pdia.alpha0() + ", " + pdia.alpha());
+                System.out.println(i + ": " +pdia.trainingLogLikelihood() + ", " + pdia.numStates() + ", " + pdia.alpha0() + ", " + pdia.alpha() + ", " + pdia.beta());
+                pdia.sample();
             }
             //PDIA pdia2 = pdia.clone();
             //pdia.clear();
