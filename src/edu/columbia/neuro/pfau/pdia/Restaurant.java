@@ -140,14 +140,14 @@ public class Restaurant<C,D> extends Distribution<D> implements Cloneable {
     }
 
     @Override
-    public double probability (D i) {
+    public double probability (D d) {
         double prob = 0.0;
         for (Table<D> t : customerToTables.values()) {
-            if (t.dish() == i) {
+            if (t.dish() == d) {
                 prob += (t.customers() - discount)/(concentration + customers);
             }
         }
-        return prob + (concentration + discount*tables)/(concentration + customers)*base.probability(i);
+        return prob + (concentration + discount*tables)/(concentration + customers)*base.probability(d);
     }
 
     public D seat(C c) {
@@ -227,51 +227,4 @@ public class Restaurant<C,D> extends Distribution<D> implements Cloneable {
             ((Table)c).set(t.dish());
         }
     }
-
-    /*@Override
-    public Restaurant<C,D> clone() {
-        // Note that this is a *shallow* copy.
-        // Use cloneCustomers and swapTables to make a deep copy of customerToTables
-        return new Restaurant<C,D>(concentration,discount,base,customerToTables);
-    }
-
-    // A method which replaces every key in customerToTables with a clone, only used for cloning an HPYP.
-    // Returns a HashMap from the original customers to the clones
-    public HashMap<C,C> cloneCustomers() {
-        boolean begin = true;
-        HashMap<C,C> map = new HashMap<C,C>();
-        HashMap<C,Table<D>> newCtoT = new HashMap<C,Table<D>>();
-        for (C c : customerToTables.keySet()) {
-            if(begin) {
-                if (c instanceof Table) { // Check the first key in the iterator to see if it's a type with public clone method
-                    begin = false;
-                } else {
-                    return map;
-                }
-            }
-            Table t = (Table)c;
-            Table u = t.clone();
-            Table<D> v = customerToTables.get(c);
-            newCtoT.put((C)u, v);
-            map.put((C)t, (C)u);
-        }
-        customerToTables = newCtoT;
-        return map;
-    }
-
-    // Also for cloning an HPYP, but for the tables of a low-level restaurant
-    // rather than customers at high level restaurant.  Uses output of cloneCustomers()
-    public void swapTables(HashMap<Table<D>,Table<D>> map) {
-        HashMap<C,Table<D>> newCtoT = new HashMap<C,Table<D>>();
-        for (C c : customerToTables.keySet()) {
-            Table<D> t = customerToTables.get(c);
-            newCtoT.put(c, map.get(t));
-        }
-        customerToTables = newCtoT;
-    }
-
-    // Be careful with this one!  Again used only for PDIA clone method.
-    public void setBaseDistribution(Distribution<D> d) {
-        base = d;
-    }*/
 }

@@ -124,11 +124,11 @@ public class PDIA implements Cloneable {
     }
 
     public double trainingLogLikelihood() {
-        return dataLogLikelihood(count(trainingData));
+        return dataLogLikelihood(trainCount());
     }
 
     public double testingLogLikelihood() {
-        return dataLogLikelihood(count(testingData));
+        return dataLogLikelihood(testCount());
     }
 
     public int trainLen() {
@@ -314,36 +314,6 @@ public class PDIA implements Cloneable {
             beta = oldBeta;
         }
     }
-
-    /*@Override
-    public PDIA clone() {
-        PDIA p = new PDIA(numSymbols);
-        p.alpha     = this.alpha;
-        p.alpha0    = this.alpha0;
-        p.beta      = this.beta;
-        p.alphabet  = this.alphabet;
-
-        p.trainingData = this.trainingData;
-        p.testingData  = this.testingData; // cloning ought not to matter since this isn't really mutable
-
-        p.top = this.top.clone();
-        HashMap<Table<Integer>,Table<Integer>> tableMap = p.top.cloneCustomers();
-
-        p.restaurants = new ArrayList<Restaurant<Integer,Integer>>();
-        for (Restaurant r : this.restaurants) {
-            Restaurant<Integer,Integer> s = (Restaurant<Integer,Integer>)r.clone();
-            s.swapTables(tableMap);
-            s.setBaseDistribution(p.top);
-            p.restaurants.add(s);
-        }
-
-        p.delta = new HashMap[numSymbols];
-        for (int i = 0; i < numSymbols; i++) {
-            p.delta[i] = (HashMap<Integer,Integer>)delta[i].clone();
-        }
-
-        return p;
-    }*/
 
     public void clear() {
         for (int i = 0; i < delta.length; i++) {
