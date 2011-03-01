@@ -19,15 +19,7 @@ public class Main {
                 }
                 data.add(foo);
             }
-            PDIA pdia = new PDIA(data,1,2);
-            HashMap<Integer,Integer>[] even = new HashMap[2];
-            even[0] = new HashMap<Integer,Integer>();
-            even[1] = new HashMap<Integer,Integer>();
-            even[0].put(0,1);
-            even[0].put(1,2);
-            even[0].put(2,1);
-            even[1].put(1,1);
-            pdia.fix(even);
+            PDIA pdia = new PDIA(data,100,27);
             for (int i = 0; i < 10000; i++) {
                 //System.out.println(-pdia.trainingLogLikelihood()/pdia.trainLen()/Math.log(2) + ", " + pdia.numStates() + ", " + pdia.alpha0() + ", " + pdia.alpha());
                 System.out.println(i + ": " + pdia.trainingLogLikelihood() + ", " + pdia.numStates() + ", " + pdia.alpha0() + ", " + pdia.alpha() + ", " + pdia.beta());
