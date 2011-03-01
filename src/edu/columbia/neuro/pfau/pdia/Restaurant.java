@@ -25,11 +25,11 @@ public class Restaurant<C,D> extends Distribution<D> implements Cloneable {
     private int tables;
 
     public double concentration;
-    public float discount;
+    public double discount;
 
     private HashMap<C,Table<D>> customerToTables;
 
-    public Restaurant(double a, float d, Distribution<D> h) {
+    public Restaurant(double a, double d, Distribution<D> h) {
         concentration = a;
         discount = d;
         base = h;
@@ -40,7 +40,7 @@ public class Restaurant<C,D> extends Distribution<D> implements Cloneable {
         customerToTables = new HashMap<C,Table<D>>();
     }
 
-    public Restaurant(double a, float d, Distribution<D> h, HashMap<C,Table<D>> t) {
+    public Restaurant(double a, double d, Distribution<D> h, HashMap<C,Table<D>> t) {
         concentration = a;
         discount = d;
         base = h;

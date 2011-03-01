@@ -20,6 +20,8 @@ public class PDIA implements Cloneable {
     private double alpha;
     private double alpha0;
     private double beta;
+    private double d;
+    private double d0;
     private int numSymbols;
 
     private ArrayList<Object> alphabet;
@@ -38,6 +40,8 @@ public class PDIA implements Cloneable {
         alpha = 1.0;
         alpha0 = 1.0;
         beta = 1.0;
+        d = 0.5;
+        d0 = 0.5;
         alphabet = new ArrayList<Object>();
         top = new Restaurant<Table<Integer>,Integer>(alpha0,0,new Geometric(0.001));
 
@@ -216,6 +220,14 @@ public class PDIA implements Cloneable {
         return beta;
     }
 
+    public double d() {
+        return d;
+    }
+
+    public double d0() {
+        return d0;
+    }
+
     public void sample() {
         suffStat s = new suffStat();
         for (int i = 0; i < numSymbols; i++) {
@@ -223,8 +235,7 @@ public class PDIA implements Cloneable {
         }
         s = sampleEntries(top,s);
         for (int x = 0; x < 5; x++) {
-            sampleAlpha();
-            sampleAlpha0();
+            sampleHyperparams();
             sampleBeta(s.score, s.count);
         }
     }
@@ -274,34 +285,44 @@ public class PDIA implements Cloneable {
         }
     }
 
-    public void sampleAlpha() {
+    // Sample all hyperparameters of the HPYP (distinct from beta)
+    // uses log-normal proposals for the concentrations, uniform proposals for the discounts
+    public void sampleHyperparams() {
         double alphaNew = Math.exp(top.rnd.nextGaussian() + Math.log(alpha)); // log-normal proposal
         int k = 0;
-        double logNOld = 0;
-        double logNNew = 0;
+        double foo = 0;
+        double bar = 0;
         for (Restaurant r : restaurants) {
             k += r.tables();
-            logNOld += Gamma.logGamma(alpha    + r.customers());
-            logNNew += Gamma.logGamma(alphaNew + r.customers());
+            foo += Gamma.logGamma(alpha/d    + r.tables()) - Gamma.logGamma(alpha    + r.customers());
+            bar += Gamma.logGamma(alphaNew/d + r.tables()) - Gamma.logGamma(alphaNew + r.customers());
         }
-        double oldLikelihood = (k + 1) * Math.log(alpha)    + (numSymbols)*Gamma.logGamma(alpha)    - logNOld - alpha; // includes Hastings correction because ratio of proposal probabilities is alpha/alphaNew
-        double newLikelihood = (k + 1) * Math.log(alphaNew) + (numSymbols)*Gamma.logGamma(alphaNew) - logNNew - alphaNew;
+        double oldLikelihood = (numSymbols)*( Gamma.logGamma(alpha)    - Gamma.logGamma(alpha/d) )
+                + foo - alpha    + Math.log(alpha); // includes Hastings correction because ratio of proposal probabilities is alpha/alphaNew
+        double newLikelihood = (numSymbols)*( Gamma.logGamma(alphaNew) - Gamma.logGamma(alphaNew/d) )
+                + bar - alphaNew + Math.log(alphaNew);
         if (Math.log(Math.random()) < newLikelihood - oldLikelihood) {
             alpha = alphaNew;
         }
         for (Restaurant r : restaurants) {
             r.concentration = alpha;
         }
-    }
 
-    public void sampleAlpha0() { // This seems to be written very differently in the original Python implementation than any way I remember doing it.  Try both ways?
         double alpha0New = Math.exp(top.rnd.nextGaussian() + Math.log(alpha0));
-        double oldLikelihood = (top.tables() + 1) * Math.log(alpha0) + Gamma.logGamma(alpha0) - Gamma.logGamma(alpha0 + top.customers()) - alpha0;
-        double newLikelihood = (top.tables() + 1) * Math.log(alpha0New) + Gamma.logGamma(alpha0New) - Gamma.logGamma(alpha0New + top.customers()) - alpha0New;
+        oldLikelihood = Gamma.logGamma(alpha0/d0 + top.tables())    - Gamma.logGamma(alpha0/d0) 
+                + Gamma.logGamma(alpha0)    - Gamma.logGamma(alpha0 + top.customers())
+                - alpha0    + Math.log(alpha0);
+        newLikelihood = Gamma.logGamma(alpha0New/d0 + top.tables()) - Gamma.logGamma(alpha0/d0)
+                + Gamma.logGamma(alpha0New) - Gamma.logGamma(alpha0New + top.customers())
+                - alpha0New + Math.log(alpha0New);
         if (Math.log(Math.random()) < newLikelihood - oldLikelihood) {
             alpha0 = alpha0New;
         }
         top.concentration = alpha0;
+
+        float dNew  = (float)Math.random();
+
+        float d0New = (float)Math.random();
     }
 
     public void sampleBeta(double score, HashMap<Integer,Integer>[] counts) {
