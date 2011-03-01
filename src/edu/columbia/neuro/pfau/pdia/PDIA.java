@@ -217,37 +217,31 @@ public class PDIA implements Cloneable {
     }
 
     public void sample() {
-        HashMap<Integer,Integer>[] cts1 = trainCount();
-        double score1 = dataLogLikelihood(cts1);
+        suffStat s = new suffStat();
         for (int i = 0; i < numSymbols; i++) {
-            Object[] o = sampleEntries(restaurants.get(i),score1,cts1); // see if you can replace this with a simple struct
-            score1 = (Double)o[0];
-            cts1 = (HashMap<Integer,Integer>[])o[1];
+            s = sampleEntries(restaurants.get(i),s);
         }
-        Object[] o = sampleEntries(top,score1,cts1);
-        score1 = (Double)o[0];
-        cts1 = (HashMap<Integer,Integer>[])o[1];
+        //s = sampleEntries(top,s);
         for (int x = 0; x < 5; x++) {
-            sampleAlpha();
-            sampleAlpha0();
-            sampleBeta(score1, cts1);
+            //sampleAlpha();
+            //sampleAlpha0();
+            //sampleBeta(s.score, s.count);
         }
     }
 
-    public Object[] sampleEntries(Restaurant r, double score1, HashMap<Integer,Integer>[] cts1) {
+    private suffStat sampleEntries(Restaurant r, suffStat s1) {
         Set cust = r.getCustomers();
         for (Object c : cust) {
             for (int i = 0; i < 5; i++) {
                 LinkedList<Table> ts = r.unseat(c);
                 r.seat(c);
                 fix();
-                HashMap<Integer, Integer>[] cts2 = trainCount();
-                double score2 = dataLogLikelihood(cts2);
-                boolean acc = score2 - score1 > Math.log(Math.random());
+                suffStat s2 = new suffStat();
+                boolean acc = s2.score - s1.score > Math.log(Math.random());
                 ArrayList<Integer> toClear = new ArrayList<Integer>();
                 for (int j = 0; j < numSymbols; j++) {
                     for (Integer q : delta[j].keySet()) {
-                        if (acc && !cts2[j].containsKey(q) || !acc && !cts1[j].containsKey(q)) {
+                        if (acc && !s2.count[j].containsKey(q) || !acc && !s1.count[j].containsKey(q)) {
                             toClear.add(q);
                         }
                     }
@@ -257,8 +251,7 @@ public class PDIA implements Cloneable {
                     toClear.clear();
                 }
                 if (acc) {
-                    cts1 = cts2;
-                    score1 = score2;
+                    s1 = s2;
                 } else {
                     r.unseat(c);
                     r.seat(c, ts);
@@ -266,8 +259,17 @@ public class PDIA implements Cloneable {
                 }
             }
         }
-        Object[] o = {(Object)score1,(Object)cts1};
-        return o;
+        return s1;
+    }
+
+    private class suffStat {
+        double score;
+        HashMap<Integer,Integer>[] count;
+
+        public suffStat() {
+            count = trainCount();
+            score = dataLogLikelihood(count);
+        }
     }
 
     public void sampleAlpha() {

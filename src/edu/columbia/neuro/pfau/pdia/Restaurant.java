@@ -70,7 +70,11 @@ public class Restaurant<C,D> extends Distribution<D> implements Cloneable {
     }
 
     public int customers() {
-        return customers;
+        if (customers == customerToTables.size()) {
+            return customers;
+        } else {
+            return -1;
+        }
     }
 
     public int tables() {
@@ -211,9 +215,15 @@ public class Restaurant<C,D> extends Distribution<D> implements Cloneable {
 
     // Avoids code duplication for the different "seat" methods
     private void put(C c, Table<D> t) {
+        if (customerToTables.containsKey(c)) {
+            System.out.println("go figure");
+        }
         customerToTables.put(c,t);
         t.add();
         customers++;
+        if (customers != customerToTables.size()) {
+            System.out.println("wtf?");
+        }
         if (c instanceof Table) {
             ((Table)c).set(t.dish());
         }
