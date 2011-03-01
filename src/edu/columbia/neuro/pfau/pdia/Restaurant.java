@@ -24,8 +24,8 @@ public class Restaurant<C,D> extends Distribution<D> implements Cloneable {
     private int customers;
     private int tables;
 
-    private double concentration;
-    private float discount;
+    public double concentration;
+    public float discount;
 
     private HashMap<C,Table<D>> customerToTables;
 

@@ -52,9 +52,9 @@ public class PDIA implements Cloneable {
         for (int i = 0; i < nsym; i++) {
             delta[i] = new HashMap<Integer,Integer>();
         }        
-        alpha = 1.0;
-        alpha0 = 1.0;
-        beta = 1.0;
+        alpha = 8.0;
+        alpha0 = 20.0;
+        beta = 6.0;
         alphabet = new ArrayList<Object>();
         top = new Restaurant<Table<Integer>,Integer>(alpha0,0,new Geometric(0.001));
 
@@ -275,42 +275,40 @@ public class PDIA implements Cloneable {
     }
 
     public void sampleAlpha() {
-        double alphaNew = 0.5*top.rnd.nextGaussian() + alpha;
+        double alphaNew = Math.exp(top.rnd.nextGaussian() + Math.log(alpha)); // log-normal proposal
         int k = 0;
-        int n = 0;
+        double logNOld = 0;
+        double logNNew = 0;
         for (Restaurant r : restaurants) {
             k += r.tables();
-            n += r.customers();
+            logNOld += Gamma.logGamma(alpha    + r.customers());
+            logNNew += Gamma.logGamma(alphaNew + r.customers());
         }
-        if (alphaNew > 0) {
-            double oldLikelihood = k*Math.log(alpha) + Gamma.logGamma(alpha) - Gamma.logGamma(alpha + n) - alpha;
-            double newLikelihood = k*Math.log(alphaNew) + Gamma.logGamma(alphaNew) - Gamma.logGamma(alphaNew + n) - alphaNew;
-            if (Math.log(Math.random()) < newLikelihood - oldLikelihood) {
-                alpha = alphaNew;
-            }
+        double oldLikelihood = (k + 1) * Math.log(alpha)    + (numSymbols)*Gamma.logGamma(alpha)    - logNOld - alpha; // includes Hastings correction because ratio of proposal probabilities is alpha/alphaNew
+        double newLikelihood = (k + 1) * Math.log(alphaNew) + (numSymbols)*Gamma.logGamma(alphaNew) - logNNew - alphaNew;
+        if (Math.log(Math.random()) < newLikelihood - oldLikelihood) {
+            alpha = alphaNew;
+        }
+        for (Restaurant r : restaurants) {
+            r.concentration = alpha;
         }
     }
 
     public void sampleAlpha0() { // This seems to be written very differently in the original Python implementation than any way I remember doing it.  Try both ways?
-        double alpha0New = 0.5*top.rnd.nextGaussian() + alpha0;
-        if (alpha0New > 0) {
-            double oldLikelihood = top.tables()*Math.log(alpha0) + Gamma.logGamma(alpha0) - Gamma.logGamma(alpha0 + top.customers()) - alpha0;
-            double newLikelihood = top.tables()*Math.log(alpha0New) + Gamma.logGamma(alpha0New) - Gamma.logGamma(alpha0New + top.customers()) - alpha0New;
-            if (Math.log(Math.random()) < newLikelihood - oldLikelihood) {
-                alpha0 = alpha0New;
-            }
+        double alpha0New = Math.exp(top.rnd.nextGaussian() + Math.log(alpha0));
+        double oldLikelihood = (top.tables() + 1) * Math.log(alpha0) + Gamma.logGamma(alpha0) - Gamma.logGamma(alpha0 + top.customers()) - alpha0;
+        double newLikelihood = (top.tables() + 1) * Math.log(alpha0New) + Gamma.logGamma(alpha0New) - Gamma.logGamma(alpha0New + top.customers()) - alpha0New;
+        if (Math.log(Math.random()) < newLikelihood - oldLikelihood) {
+            alpha0 = alpha0New;
         }
+        top.concentration = alpha0;
     }
 
     public void sampleBeta(double score, HashMap<Integer,Integer>[] counts) {
-        double oldLikelihood = score - beta;
+        double oldLikelihood = score - beta + Math.log(beta);
         double oldBeta = beta;
-        beta += 0.5*top.rnd.nextGaussian();
-        if (beta > 0) {
-            if (Math.log(Math.random()) > dataLogLikelihood(counts) - beta - oldLikelihood) {
-                beta = oldBeta;
-            }
-        } else {
+        beta = Math.exp(top.rnd.nextGaussian() + Math.log(beta));
+        if (Math.log(Math.random()) > dataLogLikelihood(counts) - beta + Math.log(beta) - oldLikelihood) {
             beta = oldBeta;
         }
     }
@@ -346,9 +344,7 @@ public class PDIA implements Cloneable {
                 delta[i].put(j, (Integer)(r.dish(j)));
             }
             for (Object o : r.getCustomers()) {
-                if (!delta[i].containsKey((Integer)o)) {
-                    System.out.println("meshuggah");
-                }
+                assert delta[i].containsKey((Integer)o) : "Mismatch between restaurants and delta";
             }
         }
     }
