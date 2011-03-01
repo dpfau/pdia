@@ -81,11 +81,6 @@ public class Restaurant<C,D> extends Distribution<D> implements Cloneable {
         return new ArrayList<Table<D>>(new HashSet<Table<D>>(customerToTables.values()));
     }
 
-    private Table<D> sampleTable() {
-        ArrayList<Table<D>> uniqueTables = getTables();
-        return crp(uniqueTables);
-    }
-
     private Table<D> sampleTable(D d) {
         ArrayList<Table<D>> uniqueTables = getTables();
         ArrayList<Table<D>> tablesServingD = new ArrayList<Table<D>>();
@@ -122,7 +117,7 @@ public class Restaurant<C,D> extends Distribution<D> implements Cloneable {
 
     @Override
     public D sample() {
-        Table<D> t = sampleTable();
+        Table<D> t = crp(getTables());
         if (t == null) {
             return base.sample();
         } else {
@@ -142,13 +137,38 @@ public class Restaurant<C,D> extends Distribution<D> implements Cloneable {
     }
 
     public D seat(C c) {
-        Table<D> t = seatAtTable(c,sampleTable());
+        Table<D> t = crp(getTables());
+        if (t == null) {
+            tables++;
+            if (base instanceof Restaurant) { // If this is an HPYP
+                t = new Table<D>(null);
+                D s = (D)((Restaurant)base).seat(t);
+                t.set(s);
+            } else {
+                t = new Table<D>(base.sample());
+            }
+        }
+        customerToTables.put(c, t);
+        t.add();
+        customers++;
         return t.dish();
     }
 
     // Only seats at tables serving the specified dish
     public void seat(C c, D d) {
-        seatAtTable(c,sampleTable(d));
+        Table<D> t = sampleTable(d);
+        if (t == null) {
+            tables++;
+            if (base instanceof Restaurant) { // If this is an HPYP
+                t = new Table<D>(d);
+                ((Restaurant)base).seat(t,d);
+            } else {
+                t = new Table<D>(d);
+            }
+        }
+        customerToTables.put(c, t);
+        t.add();
+        customers++;
     }
 
     // For putting an observation back in after rejecting MH step
@@ -183,9 +203,11 @@ public class Restaurant<C,D> extends Distribution<D> implements Cloneable {
     }
 
     public LinkedList<Table<D>> unseat(C c) {
+        assert customers == customerToTables.size() : "Alert 1!";
         Table<D> t = customerToTables.remove(c);
         if (t != null) {
             customers--;
+            assert customers == customerToTables.size() : "Alert 2!";
             t.remove();
             LinkedList<Table<D>> ts = new LinkedList<Table<D>>();
             ts.add(t);
@@ -211,6 +233,7 @@ public class Restaurant<C,D> extends Distribution<D> implements Cloneable {
         return new Restaurant<C,D>(concentration,discount,base,customerToTables);
     }
 
+    /*
     // A method which replaces every key in customerToTables with a clone, only used for cloning an HPYP.
     // Returns a HashMap from the original customers to the clones
     public HashMap<C,C> cloneCustomers() {
@@ -249,5 +272,5 @@ public class Restaurant<C,D> extends Distribution<D> implements Cloneable {
     // Be careful with this one!  Again used only for PDIA clone method.
     public void setBaseDistribution(Distribution<D> d) {
         base = d;
-    }
+    }*/
 }
