@@ -221,41 +221,43 @@ public class PDIA implements Cloneable {
         for (int i = 0; i < numSymbols; i++) {
             s = sampleEntries(restaurants.get(i),s);
         }
-        //s = sampleEntries(top,s);
+        s = sampleEntries(top,s);
         for (int x = 0; x < 5; x++) {
-            //sampleAlpha();
-            //sampleAlpha0();
-            //sampleBeta(s.score, s.count);
+            sampleAlpha();
+            sampleAlpha0();
+            sampleBeta(s.score, s.count);
         }
     }
 
     private suffStat sampleEntries(Restaurant r, suffStat s1) {
         Set cust = r.getCustomers();
         for (Object c : cust) {
-            for (int i = 0; i < 5; i++) {
-                LinkedList<Table> ts = r.unseat(c);
-                r.seat(c);
-                fix();
-                suffStat s2 = new suffStat();
-                boolean acc = s2.score - s1.score > Math.log(Math.random());
-                ArrayList<Integer> toClear = new ArrayList<Integer>();
-                for (int j = 0; j < numSymbols; j++) {
-                    for (Integer q : delta[j].keySet()) {
-                        if (acc && !s2.count[j].containsKey(q) || !acc && !s1.count[j].containsKey(q)) {
-                            toClear.add(q);
-                        }
-                    }
-                    for (Integer q : toClear) {
-                        remove(j, q);
-                    }
-                    toClear.clear();
-                }
-                if (acc) {
-                    s1 = s2;
-                } else {
-                    r.unseat(c);
-                    r.seat(c, ts);
+            if (r.serving(c)) { // If the current entry hasn't been removed in the course of sampling other entries
+                for (int i = 0; i < 5; i++) {
+                    LinkedList<Table> ts = r.unseat(c);
+                    r.seat(c);
                     fix();
+                    suffStat s2 = new suffStat();
+                    boolean acc = s2.score - s1.score > Math.log(Math.random());
+                    ArrayList<Integer> toClear = new ArrayList<Integer>();
+                    for (int j = 0; j < numSymbols; j++) {
+                        for (Integer q : delta[j].keySet()) {
+                            if (acc && !s2.count[j].containsKey(q) || !acc && !s1.count[j].containsKey(q)) {
+                                toClear.add(q);
+                            }
+                        }
+                        for (Integer q : toClear) {
+                            remove(j, q);
+                        }
+                        toClear.clear();
+                    }
+                    if (acc) {
+                        s1 = s2;
+                    } else {
+                        r.unseat(c);
+                        r.seat(c, ts);
+                        fix();
+                    }
                 }
             }
         }
@@ -372,6 +374,11 @@ public class PDIA implements Cloneable {
             Restaurant r = restaurants.get(i);
             for (Integer j : delta[i].keySet()) {
                 delta[i].put(j, (Integer)(r.dish(j)));
+            }
+            for (Object o : r.getCustomers()) {
+                if (!delta[i].containsKey((Integer)o)) {
+                    System.out.println("meshuggah");
+                }
             }
         }
     }

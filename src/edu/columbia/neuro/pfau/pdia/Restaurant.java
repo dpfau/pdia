@@ -91,6 +91,10 @@ public class Restaurant<C,D> extends Distribution<D> implements Cloneable {
         return new ArrayList<Table<D>>(new HashSet<Table<D>>(customerToTables.values()));
     }
 
+    public boolean serving(C c) {
+        return customerToTables.containsKey(c);
+    }
+
     private Table<D> sampleTable(D d) {
         ArrayList<Table<D>> uniqueTables = getTables();
         ArrayList<Table<D>> tablesServingD = new ArrayList<Table<D>>();
@@ -215,15 +219,10 @@ public class Restaurant<C,D> extends Distribution<D> implements Cloneable {
 
     // Avoids code duplication for the different "seat" methods
     private void put(C c, Table<D> t) {
-        if (customerToTables.containsKey(c)) {
-            System.out.println("go figure");
-        }
+        assert !customerToTables.containsKey(c) : "trying to add customer that's already there";
         customerToTables.put(c,t);
         t.add();
         customers++;
-        if (customers != customerToTables.size()) {
-            System.out.println("wtf?");
-        }
         if (c instanceof Table) {
             ((Table)c).set(t.dish());
         }
