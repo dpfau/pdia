@@ -35,9 +35,9 @@ public class PDIA implements Cloneable {
         for (int i = 0; i < nsym; i++) {
             delta[i] = new HashMap<Integer,Integer>();
         }
-        alpha = 8.0;
-        alpha0 = 20.0;
-        beta = 6.0;
+        alpha = 1.0;
+        alpha0 = 1.0;
+        beta = 1.0;
         alphabet = new ArrayList<Object>();
         top = new Restaurant<Table<Integer>,Integer>(alpha0,0,new Geometric(0.001));
 
@@ -52,9 +52,9 @@ public class PDIA implements Cloneable {
         for (int i = 0; i < nsym; i++) {
             delta[i] = new HashMap<Integer,Integer>();
         }        
-        alpha = 8.0;
-        alpha0 = 20.0;
-        beta = 6.0;
+        alpha = 1.0;
+        alpha0 = 1.0;
+        beta = 1.0;
         alphabet = new ArrayList<Object>();
         top = new Restaurant<Table<Integer>,Integer>(alpha0,0,new Geometric(0.001));
 
@@ -95,9 +95,6 @@ public class PDIA implements Cloneable {
             delta[symbol].put(state, dish);
             return dish;
         } else {
-            if (nxt != restaurants.get(symbol).dish(state)) {
-                System.out.println("dsfds");
-            }
             return nxt;
         }
     }
@@ -223,40 +220,54 @@ public class PDIA implements Cloneable {
         HashMap<Integer,Integer>[] cts1 = trainCount();
         double score1 = dataLogLikelihood(cts1);
         for (int i = 0; i < numSymbols; i++) {
-            Set<Integer> states = ((HashMap<Integer,Integer>)delta[i].clone()).keySet();
-            for (Integer p : states) {
-                for (int x = 0; x < 5; x++) { // loop this step x times
-                    LinkedList<Table<Integer>> ts = remove(i,p);
-                    HashMap<Integer, Integer>[] cts2 = trainCount();
-                    double score2 = dataLogLikelihood(cts2);
-                    boolean acc = score2 - score1 > Math.log(Math.random()); // accept the new sample?
-                    ArrayList<Integer> toClear = new ArrayList<Integer>();
-                    for (int j = 0; j < numSymbols; j++) {
-                        for (Integer q : delta[j].keySet()) {
-                            if (acc && !cts2[j].containsKey(q) || !acc && !cts1[j].containsKey(q)) { // Clear out the unused state/symbol pairs of whichever machine is accepted
-                                toClear.add(q);
-                            }
+            Object[] o = sampleEntries(restaurants.get(i),score1,cts1); // see if you can replace this with a simple struct
+            score1 = (Double)o[0];
+            cts1 = (HashMap<Integer,Integer>[])o[1];
+        }
+        Object[] o = sampleEntries(top,score1,cts1);
+        score1 = (Double)o[0];
+        cts1 = (HashMap<Integer,Integer>[])o[1];
+        for (int x = 0; x < 5; x++) {
+            sampleAlpha();
+            sampleAlpha0();
+            sampleBeta(score1, cts1);
+        }
+    }
+
+    public Object[] sampleEntries(Restaurant r, double score1, HashMap<Integer,Integer>[] cts1) {
+        Set cust = r.getCustomers();
+        for (Object c : cust) {
+            for (int i = 0; i < 5; i++) {
+                LinkedList<Table> ts = r.unseat(c);
+                r.seat(c);
+                fix();
+                HashMap<Integer, Integer>[] cts2 = trainCount();
+                double score2 = dataLogLikelihood(cts2);
+                boolean acc = score2 - score1 > Math.log(Math.random());
+                ArrayList<Integer> toClear = new ArrayList<Integer>();
+                for (int j = 0; j < numSymbols; j++) {
+                    for (Integer q : delta[j].keySet()) {
+                        if (acc && !cts2[j].containsKey(q) || !acc && !cts1[j].containsKey(q)) {
+                            toClear.add(q);
                         }
-                        for (Integer q : toClear) {
-                            remove(j,q);
-                        }
-                        toClear.clear();
                     }
-                    if (acc) {
-                        cts1 = cts2;
-                        score1 = score2;
-                    } else {
-                        remove(i,p);
-                        add(i,p,ts);
+                    for (Integer q : toClear) {
+                        remove(j, q);
                     }
+                    toClear.clear();
+                }
+                if (acc) {
+                    cts1 = cts2;
+                    score1 = score2;
+                } else {
+                    r.unseat(c);
+                    r.seat(c, ts);
+                    fix();
                 }
             }
         }
-        for (int x = 0; x < 5; x++) {
-            //sampleAlpha();
-            //sampleAlpha0();
-            //sampleBeta(score1, cts1);
-        }
+        Object[] o = {(Object)score1,(Object)cts1};
+        return o;
     }
 
     public void sampleAlpha() {
@@ -349,6 +360,16 @@ public class PDIA implements Cloneable {
                 Integer k = transition[i].get(j);
                 delta[i].put(j, k);
                 restaurants.get(i).seat(j, k);
+            }
+        }
+    }
+
+    // replace elements of delta with the correct dishes
+    public void fix() {
+        for (int i = 0; i < numSymbols; i++) {
+            Restaurant r = restaurants.get(i);
+            for (Integer j : delta[i].keySet()) {
+                delta[i].put(j, (Integer)(r.dish(j)));
             }
         }
     }

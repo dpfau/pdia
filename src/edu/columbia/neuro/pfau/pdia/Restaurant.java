@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
+import java.util.Set;
 
 /**
  *
@@ -74,6 +75,11 @@ public class Restaurant<C,D> extends Distribution<D> implements Cloneable {
 
     public int tables() {
         return tables;
+    }
+
+    // Returns collection of customers
+    public Set<C> getCustomers() {
+        return ((HashMap<C,Table<D>>)customerToTables.clone()).keySet();
     }
 
     // Returns array list of *unique* tables, no duplicates
@@ -148,9 +154,7 @@ public class Restaurant<C,D> extends Distribution<D> implements Cloneable {
                 t = new Table<D>(base.sample());
             }
         }
-        customerToTables.put(c, t);
-        t.add();
-        customers++;
+        put(c,t);
         return t.dish();
     }
 
@@ -166,9 +170,7 @@ public class Restaurant<C,D> extends Distribution<D> implements Cloneable {
                 t = new Table<D>(d);
             }
         }
-        customerToTables.put(c, t);
-        t.add();
-        customers++;
+        put(c,t);
     }
 
     // For putting an observation back in after rejecting MH step
@@ -180,26 +182,7 @@ public class Restaurant<C,D> extends Distribution<D> implements Cloneable {
                 ((Restaurant)base).seat(t,ts);
             }
         }
-        customerToTables.put(c, t);
-        t.add();
-        customers++;
-    }
-
-    private Table<D> seatAtTable(C c, Table<D> t) {
-        if (t == null) {
-            tables++;
-            if (base instanceof Restaurant) { // If this is an HPYP
-                t = new Table<D>(null);
-                D s = (D)((Restaurant)base).seat(t);
-                t.set(s);
-            } else {
-                t = new Table<D>(base.sample());
-            }
-        }
-        customerToTables.put(c, t);
-        t.add();
-        customers++;
-        return t;
+        put(c,t);
     }
 
     public LinkedList<Table<D>> unseat(C c) {
@@ -226,14 +209,23 @@ public class Restaurant<C,D> extends Distribution<D> implements Cloneable {
         }
     }
 
-    @Override
+    // Avoids code duplication for the different "seat" methods
+    private void put(C c, Table<D> t) {
+        customerToTables.put(c,t);
+        t.add();
+        customers++;
+        if (c instanceof Table) {
+            ((Table)c).set(t.dish());
+        }
+    }
+
+    /*@Override
     public Restaurant<C,D> clone() {
         // Note that this is a *shallow* copy.
         // Use cloneCustomers and swapTables to make a deep copy of customerToTables
         return new Restaurant<C,D>(concentration,discount,base,customerToTables);
     }
 
-    /*
     // A method which replaces every key in customerToTables with a clone, only used for cloning an HPYP.
     // Returns a HashMap from the original customers to the clones
     public HashMap<C,C> cloneCustomers() {
