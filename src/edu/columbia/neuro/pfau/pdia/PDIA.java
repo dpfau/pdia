@@ -32,22 +32,24 @@ public class PDIA implements Cloneable {
     private Restaurant<Table<Integer>,Integer> top;
 
     public PDIA(int nsym) {
-        numSymbols = nsym;
-        delta = new HashMap[nsym];
-        for (int i = 0; i < nsym; i++) {
-            delta[i] = new HashMap<Integer,Integer>();
-        }
         alpha = 1.0;
         alpha0 = 1.0;
         beta = 1.0;
         d = 0.5;
         d0 = 0.5;
         alphabet = new ArrayList<Object>();
-        top = new Restaurant<Table<Integer>,Integer>(alpha0,0,new Geometric(0.001));
+        top = new Restaurant<Table<Integer>,Integer>(alpha0,d0,new Geometric(0.001));
+
+        numSymbols = nsym;
+        delta = new HashMap[nsym];
+        restaurants = new ArrayList<Restaurant<Integer,Integer>>();
+        for (int i = 0; i < nsym; i++) {
+            delta[i] = new HashMap<Integer,Integer>();
+            restaurants.add(new Restaurant<Integer,Integer>(alpha,d,top));
+        }
 
         trainingData = new ArrayList<ArrayList<Integer>>();
         testingData = new ArrayList<ArrayList<Integer>>();
-        restaurants = new ArrayList<Restaurant<Integer,Integer>>();
     }
 
     public PDIA(ArrayList<ArrayList<Object>> data, int nTrain, int nsym) {
@@ -59,8 +61,10 @@ public class PDIA implements Cloneable {
         alpha = 8.0;
         alpha0 = 20.0;
         beta = 6.0;
+        d = 0.5;
+        d0 = 0.5;
         alphabet = new ArrayList<Object>();
-        top = new Restaurant<Table<Integer>,Integer>(alpha0,0,new Geometric(0.001));
+        top = new Restaurant<Table<Integer>,Integer>(alpha0,d0,new Geometric(0.001));
 
         trainingData = new ArrayList<ArrayList<Integer>>();
         testingData = new ArrayList<ArrayList<Integer>>();
@@ -75,7 +79,7 @@ public class PDIA implements Cloneable {
                         state = next(state,alphabet.indexOf(data.get(i).get(j)));
                     } else {
                         alphabet.add(data.get(i).get(j));
-                        restaurants.add(new Restaurant<Integer,Integer>(alpha,0,top));
+                        restaurants.add(new Restaurant<Integer,Integer>(alpha,d,top));
                         line.add(alphabet.size()-1);
                         state = next(state,alphabet.size()-1);
                     }
@@ -203,30 +207,17 @@ public class PDIA implements Cloneable {
         return n;
     }
 
-    //number of states, counting the zero state
+    // number of states, counting the zero state
     public int numStates() {
         return top.dishes() + 1;
     }
 
-    public double alpha() {
-        return alpha;
-    }
-
-    public double alpha0() {
-        return alpha0;
-    }
-
-    public double beta() {
-        return beta;
-    }
-
-    public double d() {
-        return d;
-    }
-
-    public double d0() {
-        return d0;
-    }
+    // methods for accessing hyperparameters
+    public double alpha() { return alpha; }
+    public double alpha0() { return alpha0; }
+    public double beta() { return beta; }
+    public double d() { return d; }
+    public double d0() { return d0; }
 
     public void sample() {
         suffStat s = new suffStat();
