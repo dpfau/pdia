@@ -150,6 +150,43 @@ public class Restaurant<C,D> extends Distribution<D> implements Cloneable {
         return prob + (concentration + discount*tables)/(concentration + customers)*base.probability(d);
     }
 
+    // Returns the log probability of the current seating arrangement
+    public double seatingLogLikelihood() {
+        double logProb;
+        if (discount == 0) { // has simpler form for DP than PYP
+            logProb = tables * Math.log(concentration) + Gamma.logGamma(concentration) - Gamma.logGamma(concentration + customers);
+            for (Table t : getTables()) {
+                logProb += Gamma.logGamma(t.customers());
+            }
+        } else {
+            logProb = tables * ( Math.log(discount) - Gamma.logGamma(1 - discount) )
+                    + Gamma.logGamma(concentration/discount + tables) - Gamma.logGamma(concentration/discount)
+                    + Gamma.logGamma(concentration) - Gamma.logGamma(concentration + customers());
+            for (Table t : getTables()) {
+                logProb += Gamma.logGamma(t.customers() - discount);
+            }
+        }
+        return logProb;
+    }
+
+    /**
+     * Returns the gradient of the log probability of the seating arrangement.
+     * Useful for HMC sampling of hyperparameters for the PDIA.
+     * @return[0] - derivative wrt concentration
+     * @return[1] - derivative wrt discount 
+     */
+    public double[] gradSeatingLogLikelihood() {
+        double[] grad = new double[2];
+        grad[0] = (1/discount)*(Gamma.digamma(concentration/discount + tables) - Gamma.digamma(concentration/discount))
+                + Gamma.digamma(concentration) - Gamma.digamma(concentration + customers);
+        grad[1] = tables * (Gamma.digamma(discount) + Gamma.digamma(1 - discount))
+                - concentration/discount*discount * (Gamma.digamma(concentration/discount + tables) - Gamma.digamma(concentration/discount));
+        for (Table t : getTables()) {
+            grad[1] -= Gamma.digamma(t.customers() - discount);
+        }
+        return grad;
+    }
+
     public D seat(C c) {
         Table<D> t = crp(getTables());
         if (t == null) {

@@ -8,6 +8,7 @@ package edu.columbia.neuro.pfau.pdia;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedList;
+import java.util.Random;
 import java.util.Set;
 
 /**
@@ -17,8 +18,6 @@ import java.util.Set;
 public class PDIA implements Cloneable {
 
     private HashMap<Integer,Integer>[] delta;
-    private double alpha;
-    private double alpha0;
     private double beta;
     private double d;
     private double d0;
@@ -30,22 +29,20 @@ public class PDIA implements Cloneable {
 
     private ArrayList<Restaurant<Integer,Integer>> restaurants; // Maps a symbol in the alphabet to the corresponding restaurant
     private Restaurant<Table<Integer>,Integer> top;
+    private static Random rnd = Restaurant.rnd;
 
     public PDIA(int nsym) {
-        alpha = 1.0;
-        alpha0 = 1.0;
+        rnd.setSeed(1234); // for debugging only
         beta = 1.0;
-        d = 0.5;
-        d0 = 0.5;
         alphabet = new ArrayList<Object>();
-        top = new Restaurant<Table<Integer>,Integer>(alpha0,d0,new Geometric(0.001));
+        top = new Restaurant<Table<Integer>,Integer>(1,0.1,new Geometric(0.001));
 
         numSymbols = nsym;
         delta = new HashMap[nsym];
         restaurants = new ArrayList<Restaurant<Integer,Integer>>();
         for (int i = 0; i < nsym; i++) {
             delta[i] = new HashMap<Integer,Integer>();
-            restaurants.add(new Restaurant<Integer,Integer>(alpha,d,top));
+            restaurants.add(new Restaurant<Integer,Integer>(1,0.1,top));
         }
 
         trainingData = new ArrayList<ArrayList<Integer>>();
@@ -53,18 +50,15 @@ public class PDIA implements Cloneable {
     }
 
     public PDIA(ArrayList<ArrayList<Object>> data, int nTrain, int nsym) {
+        rnd.setSeed(1234); // for debugging only
         numSymbols = nsym;
         delta = new HashMap[nsym];
         for (int i = 0; i < nsym; i++) {
             delta[i] = new HashMap<Integer,Integer>();
         }        
-        alpha = 8.0;
-        alpha0 = 20.0;
-        beta = 6.0;
-        d = 0.5;
-        d0 = 0.5;
+        beta = 1.0;
         alphabet = new ArrayList<Object>();
-        top = new Restaurant<Table<Integer>,Integer>(alpha0,d0,new Geometric(0.001));
+        top = new Restaurant<Table<Integer>,Integer>(1,0.1,new Geometric(0.001));
 
         trainingData = new ArrayList<ArrayList<Integer>>();
         testingData = new ArrayList<ArrayList<Integer>>();
@@ -79,7 +73,7 @@ public class PDIA implements Cloneable {
                         state = next(state,alphabet.indexOf(data.get(i).get(j)));
                     } else {
                         alphabet.add(data.get(i).get(j));
-                        restaurants.add(new Restaurant<Integer,Integer>(alpha,d,top));
+                        restaurants.add(new Restaurant<Integer,Integer>(1,0.1,top));
                         line.add(alphabet.size()-1);
                         state = next(state,alphabet.size()-1);
                     }
@@ -129,6 +123,18 @@ public class PDIA implements Cloneable {
             logLike -= Gamma.logGamma(j + beta) - Gamma.logGamma(beta);
         }
         return logLike;
+    }
+
+    public double modelLogLikelihood() {
+        double logLike = top.seatingLogLikelihood() - alpha0() - alpha();
+        for (Restaurant r : restaurants) {
+            logLike += r.seatingLogLikelihood();
+        }
+        return logLike;
+    }
+
+    public double jointLogLikelihood() {
+        return trainingLogLikelihood() + modelLogLikelihood();
     }
 
     public double trainingLogLikelihood() {
@@ -213,11 +219,11 @@ public class PDIA implements Cloneable {
     }
 
     // methods for accessing hyperparameters
-    public double alpha() { return alpha; }
-    public double alpha0() { return alpha0; }
+    public double alpha() { return restaurants.get(0).concentration; }
+    public double alpha0() { return top.concentration; }
+    public double d() { return restaurants.get(0).discount; }
+    public double d0() { return top.discount; }
     public double beta() { return beta; }
-    public double d() { return d; }
-    public double d0() { return d0; }
 
     public void sample() {
         suffStat s = new suffStat();
@@ -225,8 +231,9 @@ public class PDIA implements Cloneable {
             s = sampleEntries(restaurants.get(i),s);
         }
         s = sampleEntries(top,s);
-        for (int x = 0; x < 5; x++) {
-            sampleHyperparams();
+        HMCHyperparameters();
+        for (int x = 0; x < 10; x++) {
+            //sampleHyperparams();
             sampleBeta(s.score, s.count);
         }
     }
@@ -240,7 +247,7 @@ public class PDIA implements Cloneable {
                     r.seat(c);
                     fix();
                     suffStat s2 = new suffStat();
-                    boolean acc = s2.score - s1.score > Math.log(Math.random());
+                    boolean acc = s2.score - s1.score > Math.log(rnd.nextDouble());
                     ArrayList<Integer> toClear = new ArrayList<Integer>();
                     for (int j = 0; j < numSymbols; j++) {
                         for (Integer q : delta[j].keySet()) {
@@ -276,51 +283,142 @@ public class PDIA implements Cloneable {
         }
     }
 
-    // Sample all hyperparameters of the HPYP (distinct from beta)
-    // uses log-normal proposals for the concentrations, uniform proposals for the discounts
+    /**
+     * Sample all hyperparameters of the HPYP (distinct from beta).
+     * Uses log-normal proposals for the concentrations,
+     * uniform proposals for the discounts.
+     */
     public void sampleHyperparams() {
-        double alphaNew = Math.exp(top.rnd.nextGaussian() + Math.log(alpha)); // log-normal proposal
-        int k = 0;
-        double foo = 0;
-        double bar = 0;
+        double var = 1.0; // step size of the log normal proposals for the concentration
+
+        double oldAlpha0 = top.concentration;
+        double oldD0     = top.discount;
+        double oldLikelihood = top.seatingLogLikelihood() - oldAlpha0 + Math.log(oldAlpha0);
+
+        top.concentration = Math.exp(var*rnd.nextGaussian() + Math.log(oldAlpha0));
+        top.discount      = rnd.nextDouble();
+        double newLikelihood = top.seatingLogLikelihood() - top.concentration + Math.log(top.concentration);
+
+        double oldAlpha = restaurants.get(0).concentration;
+        double oldD     = restaurants.get(0).discount;
+        oldLikelihood += -oldAlpha + Math.log(oldAlpha);
+
+        double newAlpha   = Math.exp(var*rnd.nextGaussian() + Math.log(oldAlpha));
+        double newD       = rnd.nextDouble();
+        newLikelihood += -newAlpha + Math.log(newAlpha);
+        
         for (Restaurant r : restaurants) {
-            k += r.tables();
-            foo += Gamma.logGamma(alpha/d    + r.tables()) - Gamma.logGamma(alpha    + r.customers());
-            bar += Gamma.logGamma(alphaNew/d + r.tables()) - Gamma.logGamma(alphaNew + r.customers());
+            oldLikelihood += r.seatingLogLikelihood();
+            r.concentration = newAlpha;
+            r.discount      = newD;
+            newLikelihood += r.seatingLogLikelihood();
         }
-        double oldLikelihood = (numSymbols)*( Gamma.logGamma(alpha)    - Gamma.logGamma(alpha/d) )
-                + foo - alpha    + Math.log(alpha); // includes Hastings correction because ratio of proposal probabilities is alpha/alphaNew
-        double newLikelihood = (numSymbols)*( Gamma.logGamma(alphaNew) - Gamma.logGamma(alphaNew/d) )
-                + bar - alphaNew + Math.log(alphaNew);
-        if (Math.log(Math.random()) < newLikelihood - oldLikelihood) {
-            alpha = alphaNew;
+
+        if (Math.log(rnd.nextDouble()) > newLikelihood - oldLikelihood) { // reject the sample
+            top.concentration = oldAlpha0;
+            top.discount      = oldD0;
+            for (Restaurant r : restaurants) {
+                r.concentration = oldAlpha;
+                r.discount      = oldD;
+            }
         }
+    }
+
+    /**
+     * Hamiltonian Monte Carlo sampling for the HPYP hyperparameters.
+     * Mixes much faster than the MH sampling above.
+     */
+    public void HMCHyperparameters() {
+        double[] grad    = gradLogPosteriorHyperparameters();
+        double[] params  = {alpha0(),d0(),alpha(),d()};
+        double   logPost = modelLogLikelihood();
+        double   e       = 0.005; // step size
+
+        for (int l = 0; l < 5; l++) {
+            double[] p = new double[4];
+            double energy = logPost;
+            for (int i = 0; i < p.length; i++) {
+                p[i] = rnd.nextGaussian();
+                energy += p[i]*p[i]/2;
+            }
+            
+            double[] newParams = {alpha0(),d0(),alpha(),d()};
+            double[] newGrad   = grad;
+            for (int t = 0; t < 10; t++) { // run Hamiltonian dynamics
+                for (int i = 0; i < p.length; i++) {
+                    p[i] -= e*newGrad[i]/2;
+                    newParams[i] += e*p[i];
+                }
+                if (newParams[1] > 1 || newParams[1] < 0) {
+                    p[1] = -p[1]; // bounce off the boundary
+                }
+                if (newParams[3] > 1 || newParams[3] < 0) {
+                    p[3] = -p[3];
+                }
+                setHyperparameters(newParams);
+                newGrad = gradLogPosteriorHyperparameters();
+                for (int i = 0; i < p.length; i++) {
+                    p[i] -= e*newGrad[i]/2;
+                }
+                if (newParams[1] > 1 || newParams[1] < 0) {
+                    p[1] = -p[1]; // bounce off the boundary
+                }
+                if (newParams[3] > 1 || newParams[3] < 0) {
+                    p[3] = -p[3];
+                }
+                double newLogPost = modelLogLikelihood();
+                double foo = 1;
+            }
+
+            double newLogPost = modelLogLikelihood();
+            double newEnergy  = newLogPost;
+            for (int i = 0; i < p.length; i++) {
+                newEnergy += p[i]*p[i]/2;
+            }
+            if (Math.log(rnd.nextDouble()) > newEnergy - energy) { // reject the sample
+                setHyperparameters(params);
+            } else {
+                grad    = newGrad;
+                logPost = newLogPost;
+            }
+        }
+    }
+
+    public void setHyperparameters(double[] params) {
+        top.concentration = params[0];
+        top.discount      = params[1];
         for (Restaurant r : restaurants) {
-            r.concentration = alpha;
+            r.concentration = params[2];
+            r.discount      = params[3];
         }
+    }
 
-        double alpha0New = Math.exp(top.rnd.nextGaussian() + Math.log(alpha0));
-        oldLikelihood = Gamma.logGamma(alpha0/d0 + top.tables())    - Gamma.logGamma(alpha0/d0) 
-                + Gamma.logGamma(alpha0)    - Gamma.logGamma(alpha0 + top.customers())
-                - alpha0    + Math.log(alpha0);
-        newLikelihood = Gamma.logGamma(alpha0New/d0 + top.tables()) - Gamma.logGamma(alpha0/d0)
-                + Gamma.logGamma(alpha0New) - Gamma.logGamma(alpha0New + top.customers())
-                - alpha0New + Math.log(alpha0New);
-        if (Math.log(Math.random()) < newLikelihood - oldLikelihood) {
-            alpha0 = alpha0New;
+    /**
+     * The gradient of the log posterior of the HPYP hyperparameters.
+     * Used for Hamiltonian Monte Carlo
+     * @return[0] - derivative wrt alpha0
+     * @return[1] - derivative wrt d0
+     * @return[2] - derivative wrt alpha
+     * @return[3] - derivative wrt d
+     */
+    public double[] gradLogPosteriorHyperparameters() {
+        double[] grad = new double[]{-1,0,-1,0}; // Initialize with the gradient of the log prior
+        double[] subGrad = top.gradSeatingLogLikelihood();
+        grad[0] += subGrad[0];
+        grad[1] += subGrad[1];
+        for (Restaurant r : restaurants) {
+            subGrad = r.gradSeatingLogLikelihood();
+            grad[2] += subGrad[0];
+            grad[3] += subGrad[1];
         }
-        top.concentration = alpha0;
-
-        float dNew  = (float)Math.random();
-
-        float d0New = (float)Math.random();
+        return grad;
     }
 
     public void sampleBeta(double score, HashMap<Integer,Integer>[] counts) {
         double oldLikelihood = score - beta + Math.log(beta);
         double oldBeta = beta;
-        beta = Math.exp(top.rnd.nextGaussian() + Math.log(beta));
-        if (Math.log(Math.random()) > dataLogLikelihood(counts) - beta + Math.log(beta) - oldLikelihood) {
+        beta = Math.exp(rnd.nextGaussian() + Math.log(beta));
+        if (Math.log(rnd.nextDouble()) > dataLogLikelihood(counts) - beta + Math.log(beta) - oldLikelihood) {
             beta = oldBeta;
         }
     }

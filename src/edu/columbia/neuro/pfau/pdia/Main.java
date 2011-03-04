@@ -21,8 +21,8 @@ public class Main {
             }
             PDIA pdia = new PDIA(data,100,27);
             for (int i = 0; i < 10000; i++) {
-                //System.out.println(-pdia.trainingLogLikelihood()/pdia.trainLen()/Math.log(2) + ", " + pdia.numStates() + ", " + pdia.alpha0() + ", " + pdia.alpha());
-                System.out.println(i + ": " + pdia.trainingLogLikelihood() + ", " + pdia.numStates() + ", " + pdia.alpha0() + ", " + pdia.alpha() + ", " + pdia.beta());
+                System.out.println(i + ": " + -pdia.trainingLogLikelihood()/pdia.trainLen()/Math.log(2) + ", N: " + pdia.numStates() + ", c0: " + pdia.alpha0() + ", d0: " + pdia.d0() + ", c: " + pdia.alpha() + ", d: " + pdia.d());
+                //System.out.println(i + ": " + pdia.trainingLogLikelihood() + ", " + pdia.numStates() + ", " + pdia.alpha0() + ", " + pdia.alpha() + ", " + pdia.beta());
                 pdia.sample();
             }
             //PDIA pdia2 = pdia.clone();
