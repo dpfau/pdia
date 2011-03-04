@@ -231,8 +231,7 @@ public class PDIA implements Cloneable {
         }
         s = sampleEntries(top,s);
         HMCHyperparameters();
-        for (int x = 0; x < 10; x++) {
-            //sampleHyperparams();
+        for (int x = 0; x < 5; x++) {
             sampleBeta(s.score, s.count);
         }
     }
@@ -283,49 +282,8 @@ public class PDIA implements Cloneable {
     }
 
     /**
-     * Sample all hyperparameters of the HPYP (distinct from beta).
-     * Uses log-normal proposals for the concentrations,
-     * uniform proposals for the discounts.
-     */
-    public void sampleHyperparams() {
-        double var = 1.0; // step size of the log normal proposals for the concentration
-
-        double oldAlpha0 = top.concentration;
-        double oldD0     = top.discount;
-        double oldLikelihood = top.seatingLogLikelihood() - oldAlpha0 + Math.log(oldAlpha0);
-
-        top.concentration = Math.exp(var*rnd.nextGaussian() + Math.log(oldAlpha0));
-        top.discount      = rnd.nextDouble();
-        double newLikelihood = top.seatingLogLikelihood() - top.concentration + Math.log(top.concentration);
-
-        double oldAlpha = restaurants.get(0).concentration;
-        double oldD     = restaurants.get(0).discount;
-        oldLikelihood += -oldAlpha + Math.log(oldAlpha);
-
-        double newAlpha   = Math.exp(var*rnd.nextGaussian() + Math.log(oldAlpha));
-        double newD       = rnd.nextDouble();
-        newLikelihood += -newAlpha + Math.log(newAlpha);
-        
-        for (Restaurant r : restaurants) {
-            oldLikelihood += r.seatingLogLikelihood();
-            r.concentration = newAlpha;
-            r.discount      = newD;
-            newLikelihood += r.seatingLogLikelihood();
-        }
-
-        if (Math.log(rnd.nextDouble()) > newLikelihood - oldLikelihood) { // reject the sample
-            top.concentration = oldAlpha0;
-            top.discount      = oldD0;
-            for (Restaurant r : restaurants) {
-                r.concentration = oldAlpha;
-                r.discount      = oldD;
-            }
-        }
-    }
-
-    /**
      * Hamiltonian Monte Carlo sampling for the HPYP hyperparameters.
-     * Mixes much faster than the MH sampling above.
+     * 
      */
     public void HMCHyperparameters() {
         double[] grad    = gradLogPosteriorHyperparameters();
