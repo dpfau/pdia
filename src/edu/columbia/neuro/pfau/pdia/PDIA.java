@@ -19,8 +19,6 @@ public class PDIA implements Cloneable {
 
     private HashMap<Integer,Integer>[] delta;
     private double beta;
-    private double d;
-    private double d0;
     private int numSymbols;
 
     private ArrayList<Object> alphabet;
@@ -141,6 +139,7 @@ public class PDIA implements Cloneable {
         return dataLogLikelihood(trainCount());
     }
 
+    // Note: remove added transition elements after calling this f'n
     public double testingLogLikelihood() {
         return dataLogLikelihood(testCount());
     }
@@ -349,25 +348,35 @@ public class PDIA implements Cloneable {
                     p[i] -= e*newGrad[i]/2;
                     newParams[i] += e*p[i];
                 }
-                if (newParams[1] > 1 || newParams[1] < 0) {
-                    p[1] = -p[1]; // bounce off the boundary
+                if (newParams[0] < 0) { // Take care of reflections off the boundary
+                    p[0] = -p[0];
+                    newParams[0] = -newParams[0];
                 }
-                if (newParams[3] > 1 || newParams[3] < 0) {
+                if (newParams[1] > 1 ) {
+                    p[1] = -p[1];
+                    newParams[1] = 2 - newParams[1];
+                }
+                if (newParams[1] < 0) {
+                    p[1] = -p[1];
+                    newParams[1] = -newParams[1];
+                }
+                if (newParams[2] < 0) {
+                    p[2] = -p[2];
+                    newParams[2] = -newParams[2];
+                }
+                if (newParams[3] > 1 ) {
                     p[3] = -p[3];
+                    newParams[3] = 2 - newParams[3];
+                }
+                if (newParams[3] < 0) {
+                    p[3] = -p[3];
+                    newParams[3] = -newParams[3];
                 }
                 setHyperparameters(newParams);
                 newGrad = gradLogPosteriorHyperparameters();
                 for (int i = 0; i < p.length; i++) {
                     p[i] -= e*newGrad[i]/2;
                 }
-                if (newParams[1] > 1 || newParams[1] < 0) {
-                    p[1] = -p[1]; // bounce off the boundary
-                }
-                if (newParams[3] > 1 || newParams[3] < 0) {
-                    p[3] = -p[3];
-                }
-                double newLogPost = modelLogLikelihood();
-                double foo = 1;
             }
 
             double newLogPost = modelLogLikelihood();

@@ -21,7 +21,6 @@ import java.util.Set;
 public class Restaurant<C,D> extends Distribution<D> implements Cloneable {
     private Distribution<D> base;
 
-    private int customers;
     private int tables;
 
     public double concentration;
@@ -34,7 +33,6 @@ public class Restaurant<C,D> extends Distribution<D> implements Cloneable {
         discount = d;
         base = h;
 
-        customers = 0;
         tables = 0;
 
         customerToTables = new HashMap<C,Table<D>>();
@@ -45,7 +43,6 @@ public class Restaurant<C,D> extends Distribution<D> implements Cloneable {
         discount = d;
         base = h;
 
-        customers = t.size();
         HashSet tt = new HashSet(t.values());
         tables = tt.size();
 
@@ -70,11 +67,7 @@ public class Restaurant<C,D> extends Distribution<D> implements Cloneable {
     }
 
     public int customers() {
-        if (customers == customerToTables.size()) {
-            return customers;
-        } else {
-            return -1;
-        }
+        return customerToTables.size();
     }
 
     public int tables() {
@@ -144,17 +137,17 @@ public class Restaurant<C,D> extends Distribution<D> implements Cloneable {
         double prob = 0.0;
         for (Table<D> t : customerToTables.values()) {
             if (t.dish() == d) {
-                prob += (t.customers() - discount)/(concentration + customers);
+                prob += (t.customers() - discount)/(concentration + customers());
             }
         }
-        return prob + (concentration + discount*tables)/(concentration + customers)*base.probability(d);
+        return prob + (concentration + discount*tables)/(concentration + customers())*base.probability(d);
     }
 
     // Returns the log probability of the current seating arrangement
     public double seatingLogLikelihood() {
         double logProb;
         if (discount == 0) { // has simpler form for DP than PYP
-            logProb = tables * Math.log(concentration) + Gamma.logGamma(concentration) - Gamma.logGamma(concentration + customers);
+            logProb = tables * Math.log(concentration) + Gamma.logGamma(concentration) - Gamma.logGamma(concentration + customers());
             for (Table t : getTables()) {
                 logProb += Gamma.logGamma(t.customers());
             }
@@ -178,9 +171,9 @@ public class Restaurant<C,D> extends Distribution<D> implements Cloneable {
     public double[] gradSeatingLogLikelihood() {
         double[] grad = new double[2];
         grad[0] = (1/discount)*(Gamma.digamma(concentration/discount + tables) - Gamma.digamma(concentration/discount))
-                + Gamma.digamma(concentration) - Gamma.digamma(concentration + customers);
-        grad[1] = tables * (Gamma.digamma(discount) + Gamma.digamma(1 - discount))
-                - concentration/discount*discount * (Gamma.digamma(concentration/discount + tables) - Gamma.digamma(concentration/discount));
+                + Gamma.digamma(concentration) - Gamma.digamma(concentration + customers());
+        grad[1] = tables * (1/discount + Gamma.digamma(1 - discount))
+                - concentration/(discount*discount) * (Gamma.digamma(concentration/discount + tables) - Gamma.digamma(concentration/discount));
         for (Table t : getTables()) {
             grad[1] -= Gamma.digamma(t.customers() - discount);
         }
@@ -193,8 +186,8 @@ public class Restaurant<C,D> extends Distribution<D> implements Cloneable {
             tables++;
             if (base instanceof Restaurant) { // If this is an HPYP
                 t = new Table<D>(null);
-                D s = (D)((Restaurant)base).seat(t);
-                t.set(s);
+                D d = (D)((Restaurant)base).seat(t);
+                t.set(d);
             } else {
                 t = new Table<D>(base.sample());
             }
@@ -231,11 +224,8 @@ public class Restaurant<C,D> extends Distribution<D> implements Cloneable {
     }
 
     public LinkedList<Table<D>> unseat(C c) {
-        assert customers == customerToTables.size() : "Alert 1!";
         Table<D> t = customerToTables.remove(c);
         if (t != null) {
-            customers--;
-            assert customers == customerToTables.size() : "Alert 2!";
             t.remove();
             LinkedList<Table<D>> ts = new LinkedList<Table<D>>();
             ts.add(t);
@@ -259,7 +249,6 @@ public class Restaurant<C,D> extends Distribution<D> implements Cloneable {
         assert !customerToTables.containsKey(c) : "trying to add customer that's already there";
         customerToTables.put(c,t);
         t.add();
-        customers++;
         if (c instanceof Table) {
             ((Table)c).set(t.dish());
         }
