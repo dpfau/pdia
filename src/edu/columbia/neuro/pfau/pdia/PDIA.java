@@ -29,6 +29,10 @@ public class PDIA implements Cloneable {
     private Restaurant<Table<Integer>,Integer> top;
     private static Random rnd = Restaurant.rnd;
 
+    /**
+     * Constructor for an empty PDIA
+     * @param nsym The number of symbols in your (yet to be provided) data
+     */
     public PDIA(int nsym) {
         rnd.setSeed(1234); // for debugging only
         beta = 1.0;
@@ -47,6 +51,12 @@ public class PDIA implements Cloneable {
         testingData = new ArrayList<ArrayList<Integer>>();
     }
 
+    /**
+     * Constructor for a PDIA with data
+     * @param data The training and testing data for this PDIA
+     * @param nTrain The number of elements in the array data that are for training (the rest are for testing)
+     * @param nsym The number of unique symbols in the data
+     */
     public PDIA(ArrayList<ArrayList<Object>> data, int nTrain, int nsym) {
         rnd.setSeed(1234); // for debugging only
         numSymbols = nsym;
@@ -87,6 +97,15 @@ public class PDIA implements Cloneable {
         assert numSymbols == alphabet.size() : "Incorrect alphabet size!";
     }
 
+    /**
+     * Gives a state of the automata and a symbol observed in that state, what is the next state.
+     * This next state is deterministic if (state,symbol) has already been observed, probabilistic if not.
+     * BE AWARE: If hasPair(state,symbol) is false, the PDIA will be modified by calling
+     * this method.  To avoid modifying the PDIA, call hasPair(state,symbol) first to check.
+     * @param state The current state
+     * @param symbol The symbol observed in this state
+     * @return The state that follows this one given the observed symbol
+     */
     public int next(int state, int symbol) {
         Integer nxt = delta[symbol].get(state);
         if (nxt == null) {
@@ -99,16 +118,25 @@ public class PDIA implements Cloneable {
         }
     }
 
-    public void add(int symbol, int state, LinkedList<Table<Integer>> ts) {
+    private void add(int symbol, int state, LinkedList<Table<Integer>> ts) {
         delta[symbol].put(state, ts.getFirst().dish());
         restaurants.get(symbol).seat(state, ts);
     }
 
-    public LinkedList<Table<Integer>> remove(int symbol, int state) {
+    private LinkedList<Table<Integer>> remove(int symbol, int state) {
         delta[symbol].remove(state);
         return restaurants.get(symbol).unseat(state);
     }
 
+    /**
+     * Given the counts of how often a symbol is observed following a state,
+     * returns the log likelihood of the sequence that generated those counts.
+     * @param counts An array of counts.  Each index in the array corresponds to
+     * one symbol.  Each key in the HashMap corresponds to one state.  Each
+     * value corresponds to the number of times that that symbol is observed in
+     * that state
+     * @return Log likelihood of the sequence that generated the counts
+     */
     public double dataLogLikelihood(HashMap<Integer,Integer>[] counts) {
         HashMap<Integer,Integer> stateCounts = stateCount(counts);
         double logLike = 0.0;
@@ -123,6 +151,10 @@ public class PDIA implements Cloneable {
         return logLike;
     }
 
+    /**
+     * @return The log probability of the model, being the probability of the
+     * hyperparameters and the seating arrangements in all the different restaurants.
+     */
     public double modelLogLikelihood() {
         double logLike = top.seatingLogLikelihood() - alpha0() - alpha();
         for (Restaurant r : restaurants) {
@@ -131,10 +163,18 @@ public class PDIA implements Cloneable {
         return logLike;
     }
 
+    /**
+     * @return The log probability of everything: the training data, the seating
+     * arrangement of the restaurants, the hyperparameters.
+     */
     public double jointLogLikelihood() {
         return trainingLogLikelihood() + modelLogLikelihood();
     }
 
+    /**
+     *
+     * @return The log likelihood of the training data
+     */
     public double trainingLogLikelihood() {
         return dataLogLikelihood(trainCount());
     }
@@ -144,6 +184,9 @@ public class PDIA implements Cloneable {
         return dataLogLikelihood(testCount());
     }
 
+    /**
+     * @return The number of tokens in the traning data
+     */
     public int trainLen() {
         int n = 0;
         for (ArrayList a : trainingData) {
@@ -152,6 +195,9 @@ public class PDIA implements Cloneable {
         return n;
     }
 
+    /**
+     * @return The number of tokens in the testing data
+     */
     public int testLen() {
         int n = 0;
         for (ArrayList a : testingData) {
@@ -160,6 +206,17 @@ public class PDIA implements Cloneable {
         return n;
     }
 
+    /**
+     * Given an array of data, returns the number of times each symbol is observed
+     * in each state given the current transition structure of the data.
+     * BE AWARE: if there are state/symbol pairs in the data not in the training
+     * data, then the PDIA will be modified.  Use clean() afterward to remove
+     * any state/symbol pairs not in the training data.
+     * @param data The sequences to be counted.  Each entry of the ArrayList is
+     * one sequence.  Each sequence starts in state 0.
+     * @return The counts.  The array indexes symbols, the HashMap keys index
+     * states, the values are the counts of the corresponding state/symbol pair.
+     */
     public HashMap<Integer,Integer>[] count(ArrayList<ArrayList<Integer>> data) {
         HashMap<Integer,Integer>[] counts = new HashMap[numSymbols];
         for (int i = 0; i < numSymbols; i++) {
@@ -181,14 +238,29 @@ public class PDIA implements Cloneable {
         return counts;
     }
 
-    public HashMap<Integer,Integer>[] trainCount() { // Hacky, but leads to important speedup because we don't need to repeat calls to count
+    /**
+     * @return For each state/symbol pair, how many times is that pair observed
+     * in the training data?
+     */
+    public HashMap<Integer,Integer>[] trainCount() {
         return count(trainingData);
     }
 
+    /**
+     * @return For each state/symbol pair, how many times is that pair observed
+     * in the testing data?
+     */
     public HashMap<Integer,Integer>[] testCount() {
-        return count(testingData);
+        HashMap<Integer,Integer>[] counts = count(testingData);
+        clean();
+        return counts;
     }
 
+    /**
+     * @param counts The output of calling count(data)
+     * @return Sums over the different symbols, returning the number of times
+     * a state is visted by the data, regardless of what symbol it emits.
+     */
     public HashMap<Integer,Integer> stateCount(HashMap<Integer,Integer>[] counts) {
         HashMap<Integer,Integer> stateCounts = new HashMap<Integer,Integer>();
         for (int i = 0; i < counts.length; i++) {
@@ -204,6 +276,9 @@ public class PDIA implements Cloneable {
         return stateCounts;
     }
 
+    /**
+     * @return The number of state/symbol pairs in the current transition matrix
+     */
     public int numPairs() {
         int n = 0;
         for (int i = 0; i < delta.length; i++) {
@@ -212,18 +287,50 @@ public class PDIA implements Cloneable {
         return n;
     }
 
-    // number of states, counting the zero state
+    /**
+     *
+     * @param state
+     * @param symbol
+     * @return Is the given symbol observed in the given state anywhere in the
+     * training data
+     */
+    public boolean hasPair(int state, int symbol) {
+        return delta[symbol].get(state) != null;
+    }
+
+    /**
+     * @return The number of states, counting the zero state
+     */
     public int numStates() {
         return top.dishes() + 1;
     }
 
-    // methods for accessing hyperparameters
+    /**
+     * @return The concentration for the symbol-specific restaurants.
+     */
     public double alpha() { return restaurants.get(0).concentration; }
+    /**
+     * @return The concentration for the top-level restaurant.
+     */
     public double alpha0() { return top.concentration; }
+    /**
+     * @return The discount for the symbol-specific restaurants.
+     */
     public double d() { return restaurants.get(0).discount; }
+    /**
+     * @return The discount for the top-level restaurant.
+     */
     public double d0() { return top.discount; }
+    /**
+     * @return The number of psuedo-counts for the emissions distribution
+     * for each state.
+     */
     public double beta() { return beta; }
 
+    /**
+     * Runs one sweep of Metropolis-Hastings sampling over the entries of the
+     * transition matrix for the PDIA
+     */
     public void sample() {
         suffStat s = new suffStat();
         for (int i = 0; i < numSymbols; i++) {
@@ -245,22 +352,11 @@ public class PDIA implements Cloneable {
                     r.seat(c);
                     fix();
                     suffStat s2 = new suffStat();
-                    boolean acc = s2.score - s1.score > Math.log(rnd.nextDouble());
-                    ArrayList<Integer> toClear = new ArrayList<Integer>();
-                    for (int j = 0; j < numSymbols; j++) {
-                        for (Integer q : delta[j].keySet()) {
-                            if (acc && !s2.count[j].containsKey(q) || !acc && !s1.count[j].containsKey(q)) {
-                                toClear.add(q);
-                            }
-                        }
-                        for (Integer q : toClear) {
-                            remove(j, q);
-                        }
-                        toClear.clear();
-                    }
-                    if (acc) {
+                    if (s2.score - s1.score > Math.log(rnd.nextDouble())) {
+                        clean(s2.count);
                         s1 = s2;
                     } else {
+                        clean(s1.count);
                         r.unseat(c);
                         r.seat(c, ts);
                         fix();
@@ -342,7 +438,7 @@ public class PDIA implements Cloneable {
             for (int i = 0; i < p.length; i++) {
                 newEnergy += p[i]*p[i]/2;
             }
-            if (Math.log(rnd.nextDouble()) > newEnergy - energy) { // reject the sample
+            if (Math.log(rnd.nextDouble()) > newEnergy - energy || newParams[0] < 0 || newParams[1] < 0 || newParams[1] > 1 || newParams[2] < 0 || newParams[3] < 0 || newParams[3] > 1) { // reject the sample
                 setHyperparameters(params);
             } else {
                 grad    = newGrad;
@@ -351,7 +447,7 @@ public class PDIA implements Cloneable {
         }
     }
 
-    public void setHyperparameters(double[] params) {
+    private void setHyperparameters(double[] params) {
         top.concentration = params[0];
         top.discount      = params[1];
         for (Restaurant r : restaurants) {
@@ -381,6 +477,12 @@ public class PDIA implements Cloneable {
         return grad;
     }
 
+    /**
+     * Samples the pseudo-counts for the emissions distribution, using already-
+     * computed scores and counts to speed things up.
+     * @param score
+     * @param counts
+     */
     public void sampleBeta(double score, HashMap<Integer,Integer>[] counts) {
         double oldLikelihood = score - beta + Math.log(beta);
         double oldBeta = beta;
@@ -390,6 +492,10 @@ public class PDIA implements Cloneable {
         }
     }
 
+    /**
+     * Remove all state/symbol pairs, removing everything from the model but the
+     * data and hyperparameters.
+     */
     public void clear() {
         for (int i = 0; i < delta.length; i++) {
             for (int j : delta[i].keySet()) {
@@ -400,8 +506,38 @@ public class PDIA implements Cloneable {
         }
     }
 
+    /**
+     * Removes state/symbol pairs not in the training data from the PDIA.
+     * Useful after calling count() on data other than the training data.
+     */
+    public void clean() {
+        clean(trainCount());
+    }
 
-    // clear existing data structures and replace them with given transition matrix
+    /**
+     * Same as clean(), but with the count pre-computed for speed
+     * @param counts
+     */
+    public void clean(HashMap<Integer,Integer>[] counts) {
+        ArrayList<Integer> toClear = new ArrayList<Integer>();
+        for (int i = 0; i < numSymbols; i++) {
+            for (Integer j : delta[i].keySet()) {
+                if (!counts[i].containsKey(j)) {
+                    toClear.add(j);
+                }
+            }
+            for (Integer j : toClear) {
+                remove(i,j);
+            }
+            toClear.clear();
+        }
+    }
+
+    /**
+     * Given the transition matrix for an arbitrary PDFA, adds them in as the
+     * initial state of the PDIA
+     * @param transition
+     */
     public void fix(HashMap<Integer,Integer>[] transition) {
         clear();
         for (int i = 0; i < transition.length; i++) {
@@ -413,7 +549,10 @@ public class PDIA implements Cloneable {
         }
     }
 
-    // replace elements of delta with the correct dishes
+    /**
+     * To avoid conflicts between the data structure "delta" and the data
+     * structure "restaurants", goes through
+     */
     public void fix() {
         for (int i = 0; i < numSymbols; i++) {
             Restaurant r = restaurants.get(i);
