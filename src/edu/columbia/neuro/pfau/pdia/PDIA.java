@@ -352,10 +352,10 @@ public class PDIA implements Cloneable {
                     r.seat(c);
                     fix();
                     suffStat s2 = new suffStat();
-                    if (s2.score - s1.score > Math.log(rnd.nextDouble())) {
+                    if (s2.score - s1.score > Math.log(rnd.nextDouble())) { // accept
                         clean(s2.count);
                         s1 = s2;
-                    } else {
+                    } else { // reject
                         clean(s1.count);
                         r.unseat(c);
                         r.seat(c, ts);

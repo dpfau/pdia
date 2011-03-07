@@ -13,6 +13,10 @@ import java.util.Set;
 
 /**
  *
+ * The Restaurant object can be used either on its own or as part of a hierarchical
+ * nonparametric Bayesian model.  Does not include a likelihood function, but still
+ * has all the machinery necessary for the PDIA or HPYP language model.
+ *
  * C - customer class, the space in which the data lives
  * D - dish class, the space in which the parameters live
  *
@@ -28,6 +32,11 @@ public class Restaurant<C,D> extends Distribution<D> implements Cloneable {
 
     private HashMap<C,Table<D>> customerToTables;
 
+    /**
+     * @param a Concentration
+     * @param d Discount
+     * @param h Base distribution
+     */
     public Restaurant(double a, double d, Distribution<D> h) {
         concentration = a;
         discount = d;
@@ -38,6 +47,13 @@ public class Restaurant<C,D> extends Distribution<D> implements Cloneable {
         customerToTables = new HashMap<C,Table<D>>();
     }
 
+    /**
+     * Also specifies the customer-to-table mapping
+     * @param a Concentration
+     * @param d Discount
+     * @param h Base distribution
+     * @param t Customer-to-table mapping
+     */
     public Restaurant(double a, double d, Distribution<D> h, HashMap<C,Table<D>> t) {
         concentration = a;
         discount = d;
@@ -49,11 +65,17 @@ public class Restaurant<C,D> extends Distribution<D> implements Cloneable {
         customerToTables = t;
     }
 
+    /*
+     * If the customer is being served in this restaurant, return the dish being
+     * served to it.
+     */
     public D dish(C c) {
         return customerToTables.get(c).dish();
     }
 
-    // return the number of unique dishes
+    /**
+     * @return The number of unique dishes.
+     */
     public int dishes() {
         int n = 0;
         HashSet<D> uniqueDishes = new HashSet<D>();
@@ -66,24 +88,38 @@ public class Restaurant<C,D> extends Distribution<D> implements Cloneable {
         return n;
     }
 
+    /*
+     * The number of unique customers.
+     */
     public int customers() {
         return customerToTables.size();
     }
 
+    /*
+     * The number of unique tables.
+     */
     public int tables() {
         return tables;
     }
 
-    // Returns collection of customers
+    /*
+     * Returns a collection of unique customers.
+     * Cloned, to avoid concurrent modification errors during sampling.
+     */
     public Set<C> getCustomers() {
         return ((HashMap<C,Table<D>>)customerToTables.clone()).keySet();
     }
 
-    // Returns array list of *unique* tables, no duplicates
+    /*
+     * Return ArrayList of unique tables.
+     */
     public ArrayList<Table<D>> getTables() {
         return new ArrayList<Table<D>>(new HashSet<Table<D>>(customerToTables.values()));
     }
 
+    /*
+     * Is this customer seated in this restaurant?
+     */
     public boolean serving(C c) {
         return customerToTables.containsKey(c);
     }
@@ -123,6 +159,9 @@ public class Restaurant<C,D> extends Distribution<D> implements Cloneable {
     }
 
     @Override
+    /*
+     * Samples a dish from the posterior predictive distribution of the CRP
+     */
     public D sample() {
         Table<D> t = crp(getTables());
         if (t == null) {
@@ -133,6 +172,9 @@ public class Restaurant<C,D> extends Distribution<D> implements Cloneable {
     }
 
     @Override
+    /**
+     * Gives the probability of sampling this dish given the current seating arrangement.
+     */
     public double probability (D d) {
         double prob = 0.0;
         for (Table<D> t : customerToTables.values()) {
@@ -143,7 +185,9 @@ public class Restaurant<C,D> extends Distribution<D> implements Cloneable {
         return prob + (concentration + discount*tables)/(concentration + customers())*base.probability(d);
     }
 
-    // Returns the log probability of the current seating arrangement
+    /*
+     * Return the log probability of the current seating arrangement.
+     */
     public double seatingLogLikelihood() {
         double logProb;
         if (discount == 0) { // has simpler form for DP than PYP
@@ -180,6 +224,10 @@ public class Restaurant<C,D> extends Distribution<D> implements Cloneable {
         return grad;
     }
 
+    /*
+     * Seat the customer according to the posterior predictive distribution of
+     * the CRP and return the dish at the table where it is seated.
+     */
     public D seat(C c) {
         Table<D> t = crp(getTables());
         if (t == null) {
@@ -196,7 +244,11 @@ public class Restaurant<C,D> extends Distribution<D> implements Cloneable {
         return t.dish();
     }
 
-    // Only seats at tables serving the specified dish
+    /**
+     * Seat a customer only at tables serving the specified dish
+     * @param c Customer
+     * @param d Dish
+     */
     public void seat(C c, D d) {
         Table<D> t = sampleTable(d);
         if (t == null) {
@@ -211,7 +263,14 @@ public class Restaurant<C,D> extends Distribution<D> implements Cloneable {
         put(c,t);
     }
 
-    // For putting an observation back in after rejecting MH step
+    /**
+     * When putting a customer back after rejecting a modification to the
+     * restaurant, we must also keep track of the hierarchy of tables at which
+     * it sat.  This method recursively re-seats the chain of tables removed
+     * during sampling
+     * @param c Customer at the bottom
+     * @param ts Chain of tables to be inserted into hierarchy of restaurants
+     */
     public void seat(C c, LinkedList<Table<D>> ts) {
         Table<D> t = ts.remove();
         if (!customerToTables.containsValue(t)) {
@@ -223,6 +282,12 @@ public class Restaurant<C,D> extends Distribution<D> implements Cloneable {
         put(c,t);
     }
 
+    /**
+     * Removes a customer from the restaurant for sampling.
+     * @param c Customer to be removed
+     * @return Chain of tables at which it was seated.  Passed to seat() above
+     * to return the entire hierarchy of restaurants to their old state.
+     */
     public LinkedList<Table<D>> unseat(C c) {
         Table<D> t = customerToTables.remove(c);
         if (t != null) {
