@@ -5,6 +5,13 @@
 
 package edu.columbia.neuro.pfau.pdia;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -15,7 +22,7 @@ import java.util.Set;
  *
  * @author davidpfau
  */
-public class PDIA implements Cloneable {
+public class PDIA implements Serializable {
 
     private HashMap<Integer,Integer>[] delta;
     private double beta;
@@ -563,6 +570,134 @@ public class PDIA implements Cloneable {
                 assert delta[i].containsKey((Integer)o) : "Mismatch between restaurants and delta";
             }
         }
+    }
+
+    /**
+     * Runs the MCMC sampler for multiple steps, saving the output every given
+     * number of steps.  The total number of steps is burnIn + jump*samples.
+     * @param burnIn The number of burn in samples, before any are saved.
+     * @param jump The number of samples between each saved output.
+     * @param samples The number of samples to be output.
+     * @param path The folder into which the samples are saved.
+     * @param name The prefix of the filename for each saved PDIA.
+     */
+    public void sample(int burnIn, int jump, int samples, String path, String name) {
+        FileOutputStream fos = null;
+        ObjectOutputStream out = null;
+        if (!path.endsWith("/")) {
+            path = path + "/";
+        }
+        for (int i = 0; i < burnIn; i++) {
+            sample();
+            System.out.println("Burn In Sample " + i);
+        }
+        for (int i = 0; i <= samples; i++) {
+            System.out.println("Writing sample " + i + " of " + samples);
+            try {
+                fos = new FileOutputStream(path + name + "." + i + ".pdia");
+                out = new ObjectOutputStream(fos);
+                out.writeObject(this);
+                out.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            if (i < samples) {
+                for (int j = 0; j < jump; j++) {
+                    sample();
+                }
+            }
+        }
+    }
+    
+    /**
+     * After having been saved by calling sample(...), loads all the samples
+     * from one run of the MCMC chain into an ArrayList.
+     * @param path The folder in which the samples are saved.
+     * @param name The prefix of the samples.
+     * @return An ArrayList of PDIAs from the same MCMC chain.
+     */
+    public static ArrayList<PDIA> load(String path, String name) {
+        FileInputStream fis  = null;
+        ObjectInputStream in = null;
+        ArrayList<PDIA> ps = new ArrayList<PDIA>();
+        if (!path.endsWith("/")) {
+            path = path + "/";
+        }
+        for (int i = 0; true; i++) {
+            File f = new File(path + name + "." + i + ".pdia");
+            if (!f.exists()) break;
+            try {
+                fis = new FileInputStream(f);
+                in  = new ObjectInputStream(fis);
+                PDIA p = (PDIA)in.readObject();
+                ps.add(p);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+        return ps;
+    }
+
+    /**
+     * Given an array of PDIAs with the same testing data, averages the
+     * predictions of each and returns the average log_2 probability of one
+     * character, equivalently the binary code length.
+     * @param ps Array of PDIAs with the same testing data, usually samples from
+     * the same MCMC chain.
+     * @param n Number of times we average over each PDIA to fill in missing
+     * transitions
+     * @return Average per-character coding length of the testing data.
+     */
+    public static double logLoss(ArrayList<PDIA> ps, int n) {
+        HashMap<Integer, Integer>[][] counts = new HashMap[ps.size()][];
+        HashMap<Integer, Integer>[] stateCounts = new HashMap[ps.size()];
+        double[][] scores = null;
+        for (int t = 0; t < n; t++) {
+            for (int i = 0; i < ps.size(); i++) {
+                PDIA p = ps.get(i);
+                if (i == 0) { // initialize scores
+                    scores = new double[p.testingData.size()][];
+                    for (int j = 0; j < scores.length; j++) {
+                        scores[j] = new double[p.testingData.get(j).size()];
+                    }
+                }
+                counts[i] = p.trainCount();
+                stateCounts[i] = p.stateCount(counts[i]);
+                for (int j = 0; j < scores.length; j++) {
+                    int state = 0;
+                    for (int k = 0; k < scores[j].length; k++) {
+                        int symbol = p.testingData.get(j).get(k);
+                        Integer ct = counts[i][symbol].get(state);
+                        Integer sct = stateCounts[i].get(state);
+                        if (ct != null) {
+                            scores[j][k] += (ct + p.beta() / p.numSymbols) / (sct + p.beta()) / n / ps.size();
+                            counts[i][symbol].put(state, ct + 1);
+                            stateCounts[i].put(state, sct + 1);
+                        } else {
+                            if (sct != null) {
+                                scores[j][k] += (p.beta() / p.numSymbols) / (sct + p.beta()) / n / ps.size();
+                                stateCounts[i].put(state, sct + 1);
+                            } else {
+                                scores[j][k] += 1 / p.numSymbols / n / ps.size();
+                                stateCounts[i].put(state, 1);
+                            }
+                            counts[i][symbol].put(state, 1);
+                        }
+                        state = p.next(state, symbol);
+                    }
+                }
+                p.clean(counts[i]);
+            }
+        }
+        double score = 0;
+        double len   = 0;
+        for (int j = 0; j < scores.length; j++) {
+            for (int k = 0; k < scores[j].length; k++) {
+                score += scores[j][k];
+            }
+            len += scores[j].length;
+        }
+        return -score/len/Math.log(2);
     }
 }
 

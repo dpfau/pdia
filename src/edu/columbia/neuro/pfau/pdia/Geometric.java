@@ -5,11 +5,13 @@
 
 package edu.columbia.neuro.pfau.pdia;
 
+import java.io.Serializable;
+
 /**
  *
  * @author davidpfau
  */
-public class Geometric extends Distribution<Integer> {
+public class Geometric extends Distribution<Integer> implements Serializable {
 
     private double p; // the probability of success on any trial
 

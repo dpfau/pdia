@@ -4,7 +4,6 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.util.ArrayList;
-import java.util.HashMap;
 
 public class Main {
     public static void main(String[] args) {
@@ -20,15 +19,7 @@ public class Main {
                 data.add(foo);
             }
             PDIA pdia = new PDIA(data,100,27);
-            for (int i = 0; i < 10000; i++) {
-                System.out.println(i + ": " + -pdia.trainingLogLikelihood()/pdia.trainLen()/Math.log(2) + ", N: " + pdia.numStates() + ", c0: " + pdia.alpha0() + ", d0: " + pdia.d0() + ", c: " + pdia.alpha() + ", d: " + pdia.d());
-                //System.out.println(i + ": " + pdia.trainingLogLikelihood() + ", " + pdia.numStates() + ", " + pdia.alpha0() + ", " + pdia.alpha() + ", " + pdia.beta());
-                pdia.sample();
-            }
-            //PDIA pdia2 = pdia.clone();
-            //pdia.clear();
-            //pdia2.clear();
-            System.out.println("OK!");
+            pdia.sample(100,10,100,"/Users/davidpfau/Documents/Wood Group/PDIA/results/","2011.03.08");
         } catch (java.io.IOException e) {
             e.printStackTrace();
         }

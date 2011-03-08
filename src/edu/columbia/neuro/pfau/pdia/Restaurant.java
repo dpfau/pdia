@@ -5,6 +5,7 @@
 
 package edu.columbia.neuro.pfau.pdia;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -22,7 +23,7 @@ import java.util.Set;
  *
  * @author davidpfau
  */
-public class Restaurant<C,D> extends Distribution<D> implements Cloneable {
+public class Restaurant<C,D> extends Distribution<D> implements Serializable {
     private Distribution<D> base;
 
     private int tables;

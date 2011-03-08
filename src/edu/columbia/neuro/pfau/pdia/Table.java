@@ -5,11 +5,13 @@
 
 package edu.columbia.neuro.pfau.pdia;
 
+import java.io.Serializable;
+
 /**
  *
  * @author davidpfau
  */
-public class Table<D> implements Cloneable {
+public class Table<D> implements Serializable {
     private D dish;
     private int customers;
 
