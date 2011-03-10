@@ -32,6 +32,7 @@ public class Restaurant<C,D> extends Distribution<D> implements Serializable {
     public double discount;
 
     private HashMap<C,Table<D>> customerToTables;
+    private static final long serialVersionUID = -6614469841127325812L;
 
     /**
      * @param a Concentration

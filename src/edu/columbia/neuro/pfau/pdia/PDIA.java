@@ -15,6 +15,7 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Random;
 import java.util.Set;
 
@@ -35,7 +36,7 @@ public class PDIA implements Serializable {
     private ArrayList<Restaurant<Integer,Integer>> restaurants; // Maps a symbol in the alphabet to the corresponding restaurant
     private Restaurant<Table<Integer>,Integer> top;
     private static Random rnd = Restaurant.rnd;
-
+    private static final long serialVersionUID = -6618469541127325812L;
     /**
      * Constructor for an empty PDIA
      * @param nsym The number of symbols in your (yet to be provided) data
@@ -581,12 +582,9 @@ public class PDIA implements Serializable {
      * @param path The folder into which the samples are saved.
      * @param name The prefix of the filename for each saved PDIA.
      */
-    public void sample(int burnIn, int jump, int samples, String path, String name) {
+    public void sample(int burnIn, int jump, int samples, String path) {
         FileOutputStream fos = null;
         ObjectOutputStream out = null;
-        if (!path.endsWith("/")) {
-            path = path + "/";
-        }
         for (int i = 0; i < burnIn; i++) {
             sample();
             System.out.println("Burn In Sample " + i);
@@ -594,7 +592,7 @@ public class PDIA implements Serializable {
         for (int i = 0; i <= samples; i++) {
             System.out.println("Writing sample " + i + " of " + samples);
             try {
-                fos = new FileOutputStream(path + name + "." + i + ".pdia");
+                fos = new FileOutputStream(path + "." + i + ".pdia");
                 out = new ObjectOutputStream(fos);
                 out.writeObject(this);
                 out.close();
@@ -612,19 +610,15 @@ public class PDIA implements Serializable {
     /**
      * After having been saved by calling sample(...), loads all the samples
      * from one run of the MCMC chain into an ArrayList.
-     * @param path The folder in which the samples are saved.
-     * @param name The prefix of the samples.
+     * @param path The folder in which the samples are saved + prefix of the files.
      * @return An ArrayList of PDIAs from the same MCMC chain.
      */
-    public static ArrayList<PDIA> load(String path, String name) {
+    public static ArrayList<PDIA> load(String path) {
         FileInputStream fis  = null;
         ObjectInputStream in = null;
         ArrayList<PDIA> ps = new ArrayList<PDIA>();
-        if (!path.endsWith("/")) {
-            path = path + "/";
-        }
         for (int i = 0; true; i++) {
-            File f = new File(path + name + "." + i + ".pdia");
+            File f = new File(path + "." + i + ".pdia");
             if (!f.exists()) break;
             try {
                 fis = new FileInputStream(f);
@@ -648,19 +642,16 @@ public class PDIA implements Serializable {
      * transitions
      * @return Average per-character coding length of the testing data.
      */
-    public static double logLoss(ArrayList<PDIA> ps, int n) {
+    public static double logLoss(List<PDIA> ps, int n) {
         HashMap<Integer, Integer>[][] counts = new HashMap[ps.size()][];
         HashMap<Integer, Integer>[] stateCounts = new HashMap[ps.size()];
-        double[][] scores = null;
+        double[][] scores = new double[ps.get(0).testingData.size()][];
+        for (int j = 0; j < scores.length; j++) {
+            scores[j] = new double[ps.get(0).testingData.get(j).size()];
+        }
         for (int t = 0; t < n; t++) {
             for (int i = 0; i < ps.size(); i++) {
                 PDIA p = ps.get(i);
-                if (i == 0) { // initialize scores
-                    scores = new double[p.testingData.size()][];
-                    for (int j = 0; j < scores.length; j++) {
-                        scores[j] = new double[p.testingData.get(j).size()];
-                    }
-                }
                 counts[i] = p.trainCount();
                 stateCounts[i] = p.stateCount(counts[i]);
                 for (int j = 0; j < scores.length; j++) {
@@ -693,7 +684,7 @@ public class PDIA implements Serializable {
         double len   = 0;
         for (int j = 0; j < scores.length; j++) {
             for (int k = 0; k < scores[j].length; k++) {
-                score += scores[j][k];
+                score += Math.log(scores[j][k]);
             }
             len += scores[j].length;
         }

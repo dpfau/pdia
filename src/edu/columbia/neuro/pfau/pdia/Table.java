@@ -14,6 +14,7 @@ import java.io.Serializable;
 public class Table<D> implements Serializable {
     private D dish;
     private int customers;
+    private static final long serialVersionUID = -6618469841127325832L;
 
     public Table(D d) {
         customers = 0;

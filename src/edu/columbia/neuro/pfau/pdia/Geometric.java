@@ -14,6 +14,7 @@ import java.io.Serializable;
 public class Geometric extends Distribution<Integer> implements Serializable {
 
     private double p; // the probability of success on any trial
+    private static final long serialVersionUID = -6618469841127324812L;
 
     public Geometric(double p) {this.p = p;}
 

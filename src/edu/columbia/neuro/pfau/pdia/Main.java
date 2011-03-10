@@ -8,7 +8,7 @@ import java.util.ArrayList;
 public class Main {
     public static void main(String[] args) {
         try{
-            BufferedReader br = new BufferedReader(new FileReader(new File(args[0])));
+            BufferedReader br = new BufferedReader(new FileReader(new File(args[0]+"data/" + args[1] + ".dat")));
             ArrayList<ArrayList<Object>> data = new ArrayList<ArrayList<Object>>();
             String line;
             while((line = br.readLine()) != null) {
@@ -18,23 +18,13 @@ public class Main {
                 }
                 data.add(foo);
             }
-            PDIA pdia = new PDIA(data,100,27);
-            pdia.sample(100,10,100,"/Users/davidpfau/Documents/Wood Group/PDIA/results/","2011.03.08");
+            PDIA pdia = new PDIA(data,Integer.parseInt(args[3]),Integer.parseInt(args[4]));
+            pdia.sample(100,10,1000,args[0] + "results/" + args[1] + "." + args[2]);
+
         } catch (java.io.IOException e) {
             e.printStackTrace();
         }
-        /*ArrayList<Restaurant<Integer,Integer>> restaurants = new ArrayList<Restaurant<Integer,Integer>>(); // Maps a symbol in the alphabet to the corresponding restaurant
-        Restaurant<Table<Integer>,Integer> top = new Restaurant<Table<Integer>,Integer>(1.0,0,new Geometric(0.001));
-        restaurants.add(new Restaurant<Integer,Integer>(1.0,0,top));
-        restaurants.add(new Restaurant<Integer,Integer>(1.0,0,top));
-        for (int i = 0; i < 100; i++) {
-            restaurants.get(0).seat(i);
-            restaurants.get(1).seat(i);
-        }
-        for (int i = 0; i < 100; i++) {
-            restaurants.get(0).unseat(i);
-            restaurants.get(1).unseat(i);
-        }
-        System.out.println("golly");*/
+        ArrayList<PDIA> ps = PDIA.load(args[0] + "results/" + args[1] + "." + args[2]);
+        System.out.println(PDIA.logLoss(ps, 10));
     }
 }
