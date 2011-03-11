@@ -108,8 +108,12 @@ public class Restaurant<C,D> extends Distribution<D> implements Serializable {
      * Returns a collection of unique customers.
      * Cloned, to avoid concurrent modification errors during sampling.
      */
-    public Set<C> getCustomers() {
+    public Set<C> cloneCustomers() {
         return ((HashMap<C,Table<D>>)customerToTables.clone()).keySet();
+    }
+
+    public Set<C> getCustomers() {
+        return customerToTables.keySet();
     }
 
     /*

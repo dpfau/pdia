@@ -30,8 +30,8 @@ public class PDIA implements Serializable {
     private int numSymbols;
 
     private ArrayList<Object> alphabet;
-    private ArrayList<ArrayList<Integer>> trainingData;
-    private ArrayList<ArrayList<Integer>> testingData;
+    private int[][] trainingData;
+    private int[][] testingData;
 
     private ArrayList<Restaurant<Integer,Integer>> restaurants; // Maps a symbol in the alphabet to the corresponding restaurant
     private Restaurant<Table<Integer>,Integer> top;
@@ -55,8 +55,8 @@ public class PDIA implements Serializable {
             restaurants.add(new Restaurant<Integer,Integer>(1,0.1,top));
         }
 
-        trainingData = new ArrayList<ArrayList<Integer>>();
-        testingData = new ArrayList<ArrayList<Integer>>();
+        trainingData = new int[0][];
+        testingData = new int[0][];
     }
 
     /**
@@ -66,18 +66,18 @@ public class PDIA implements Serializable {
      * @param nsym The number of unique symbols in the data
      */
     public PDIA(ArrayList<ArrayList<Object>> data, int nTrain, int nsym) {
-        rnd.setSeed(1234); // for debugging only
+        rnd.setSeed(124); // for debugging only
         numSymbols = nsym;
         delta = new HashMap[nsym];
         for (int i = 0; i < nsym; i++) {
             delta[i] = new HashMap<Integer,Integer>();
-        }        
+        }
         beta = 1.0;
         alphabet = new ArrayList<Object>();
-        top = new Restaurant<Table<Integer>,Integer>(1,0.1,new Geometric(0.001));
+        top = new Restaurant<Table<Integer>,Integer>(1,0.1,new Geometric(0.005));
 
-        trainingData = new ArrayList<ArrayList<Integer>>();
-        testingData = new ArrayList<ArrayList<Integer>>();
+        trainingData = new int[nTrain][];
+        testingData = new int[data.size()-nTrain][];
         restaurants = new ArrayList<Restaurant<Integer,Integer>>();
         for (int i = 0; i < data.size(); i++) {
             int state = 0;
@@ -94,36 +94,23 @@ public class PDIA implements Serializable {
                         state = next(state,alphabet.size()-1);
                     }
                 }
-                trainingData.add(line);
+                Object[] intLine = line.toArray();
+                trainingData[i] = new int[intLine.length];
+                for (int j = 0; j < intLine.length; j++) {
+                    trainingData[i][j] = (Integer)intLine[j];
+                }
             } else {
                 for (int j = 0; j < data.get(i).size(); j++) {
                     line.add(alphabet.indexOf(data.get(i).get(j)));
                 }
-                testingData.add(line);
+                Object[] intLine = line.toArray();
+                testingData[i-nTrain] = new int[intLine.length];
+                for (int j = 0; j < intLine.length; j++) {
+                    testingData[i-nTrain][j] = (Integer)intLine[j];
+                }
             }
         }
         assert numSymbols == alphabet.size() : "Incorrect alphabet size!";
-    }
-
-    /**
-     * Gives a state of the automata and a symbol observed in that state, what is the next state.
-     * This next state is deterministic if (state,symbol) has already been observed, probabilistic if not.
-     * BE AWARE: If hasPair(state,symbol) is false, the PDIA will be modified by calling
-     * this method.  To avoid modifying the PDIA, call hasPair(state,symbol) first to check.
-     * @param state The current state
-     * @param symbol The symbol observed in this state
-     * @return The state that follows this one given the observed symbol
-     */
-    public int next(int state, int symbol) {
-        Integer nxt = delta[symbol].get(state);
-        if (nxt == null) {
-            Restaurant r = restaurants.get(symbol);
-            Integer dish = (Integer)r.seat(state);
-            delta[symbol].put(state, dish);
-            return dish;
-        } else {
-            return nxt;
-        }
     }
 
     private void add(int symbol, int state, LinkedList<Table<Integer>> ts) {
@@ -145,16 +132,13 @@ public class PDIA implements Serializable {
      * that state
      * @return Log likelihood of the sequence that generated the counts
      */
-    public double dataLogLikelihood(HashMap<Integer,Integer>[] counts) {
-        HashMap<Integer,Integer> stateCounts = stateCount(counts);
+    public double dataLogLikelihood(HashMap<Integer,int[]> counts) {
         double logLike = 0.0;
-        for (int symbol = 0; symbol < counts.length; symbol++) {
-            for (Integer i : counts[symbol].values()) {
-                logLike += Gamma.logGamma(i + beta/numSymbols) - Gamma.logGamma(beta/numSymbols);
+        for (int[] arr : counts.values()) {
+            for (int i = 0; i < arr.length; i++) {
+                logLike += Gamma.logGamma(arr[i] + beta/numSymbols) - Gamma.logGamma(beta/numSymbols);
             }
-        }
-        for (Integer j : stateCounts.values()) {
-            logLike -= Gamma.logGamma(j + beta) - Gamma.logGamma(beta);
+            logLike -= Gamma.logGamma(sum(arr) + beta) - Gamma.logGamma(beta);
         }
         return logLike;
     }
@@ -197,8 +181,8 @@ public class PDIA implements Serializable {
      */
     public int trainLen() {
         int n = 0;
-        for (ArrayList a : trainingData) {
-            n += a.size();
+        for (int i = 0; i < trainingData.length; i++) {
+            n += trainingData[i].length;
         }
         return n;
     }
@@ -208,10 +192,31 @@ public class PDIA implements Serializable {
      */
     public int testLen() {
         int n = 0;
-        for (ArrayList a : testingData) {
-            n += a.size();
+        for (int i = 0; i < testingData.length; i++) {
+            n += testingData[i].length;
         }
         return n;
+    }
+
+     /**
+     * Gives a state of the automata and a symbol observed in that state, what is the next state.
+     * This next state is deterministic if (state,symbol) has already been observed, probabilistic if not.
+     * BE AWARE: If hasPair(state,symbol) is false, the PDIA will be modified by calling
+     * this method.  To avoid modifying the PDIA, call hasPair(state,symbol) first to check.
+     * @param state The current state
+     * @param symbol The symbol observed in this state
+     * @return The state that follows this one given the observed symbol
+     */
+    public int next(int state, int symbol) {
+        Integer nxt = delta[symbol].get(state);
+        if (nxt == null) {
+            Restaurant r = restaurants.get(symbol);
+            Integer dish = (Integer)r.seat(state);
+            delta[symbol].put(state, dish);
+            return dish;
+        } else {
+            return nxt;
+        }
     }
 
     /**
@@ -225,22 +230,21 @@ public class PDIA implements Serializable {
      * @return The counts.  The array indexes symbols, the HashMap keys index
      * states, the values are the counts of the corresponding state/symbol pair.
      */
-    public HashMap<Integer,Integer>[] count(ArrayList<ArrayList<Integer>> data) {
-        HashMap<Integer,Integer>[] counts = new HashMap[numSymbols];
-        for (int i = 0; i < numSymbols; i++) {
-            counts[i] = new HashMap<Integer,Integer>();
-        }
-        for (int i = 0; i < data.size(); i++) {
+    public HashMap<Integer,int[]> count(int[][] data) {
+        HashMap<Integer,int[]> counts = new HashMap<Integer,int[]>();
+        for (int i = 0; i < data.length; i++) {
             int state = 0;
-            for (int j = 0; j < data.get(i).size(); j ++) {
-                int datum = data.get(i).get(j);
-                Integer ct = counts[datum].get(state);
-                if (ct == null) {
-                    counts[datum].put(state, 1);
+            for (int j = 0; j < data[i].length; j ++) {
+                int datum = data[i][j];
+                int[] cts = counts.get(state);
+                if (cts == null) {
+                    cts = new int[numSymbols];
+                    cts[datum] = 1;
+                    counts.put(state, cts);
                 } else {
-                    counts[datum].put(state, ct + 1);
+                    cts[datum]++;
                 }
-                state = next(state, data.get(i).get(j));
+                state = next(state, datum);
             }
         }
         return counts;
@@ -250,7 +254,7 @@ public class PDIA implements Serializable {
      * @return For each state/symbol pair, how many times is that pair observed
      * in the training data?
      */
-    public HashMap<Integer,Integer>[] trainCount() {
+    public HashMap<Integer,int[]> trainCount() {
         return count(trainingData);
     }
 
@@ -258,30 +262,18 @@ public class PDIA implements Serializable {
      * @return For each state/symbol pair, how many times is that pair observed
      * in the testing data?
      */
-    public HashMap<Integer,Integer>[] testCount() {
-        HashMap<Integer,Integer>[] counts = count(testingData);
+    public HashMap<Integer,int[]> testCount() {
+        HashMap<Integer,int[]> counts = count(testingData);
         clean();
         return counts;
     }
 
-    /**
-     * @param counts The output of calling count(data)
-     * @return Sums over the different symbols, returning the number of times
-     * a state is visted by the data, regardless of what symbol it emits.
-     */
-    public HashMap<Integer,Integer> stateCount(HashMap<Integer,Integer>[] counts) {
-        HashMap<Integer,Integer> stateCounts = new HashMap<Integer,Integer>();
-        for (int i = 0; i < counts.length; i++) {
-            for (int state : counts[i].keySet()) {
-                Integer ct = stateCounts.get(state);
-                if (ct == null) {
-                    stateCounts.put(state, counts[i].get(state));
-                } else {
-                    stateCounts.put(state, ct + counts[i].get(state));
-                }
-            }
+    public static int sum(int[] arr) {
+        int s = 0;
+        for (int i = 0; i < arr.length; i++) {
+            s += arr[i];
         }
-        return stateCounts;
+        return s;
     }
 
     /**
@@ -289,8 +281,8 @@ public class PDIA implements Serializable {
      */
     public int numPairs() {
         int n = 0;
-        for (int i = 0; i < delta.length; i++) {
-            n += delta[i].size();
+        for (int i = 0; i < numSymbols; i++) {
+            n += restaurants.get(i).customers();
         }
         return n;
     }
@@ -352,7 +344,7 @@ public class PDIA implements Serializable {
     }
 
     private suffStat sampleEntries(Restaurant r, suffStat s1) {
-        Set cust = r.getCustomers();
+        Set cust = r.cloneCustomers();
         for (Object c : cust) {
             if (r.serving(c)) { // If the current entry hasn't been removed in the course of sampling other entries
                 for (int i = 0; i < 5; i++) {
@@ -377,7 +369,7 @@ public class PDIA implements Serializable {
 
     private class suffStat {
         double score;
-        HashMap<Integer,Integer>[] count;
+        HashMap<Integer,int[]> count;
 
         public suffStat() {
             count = trainCount();
@@ -387,7 +379,7 @@ public class PDIA implements Serializable {
 
     /**
      * Hamiltonian Monte Carlo sampling for the HPYP hyperparameters.
-     * 
+     *
      */
     public void HMCHyperparameters() {
         double[] grad    = gradLogPosteriorHyperparameters();
@@ -402,7 +394,7 @@ public class PDIA implements Serializable {
                 p[i] = rnd.nextGaussian();
                 energy += p[i]*p[i]/2;
             }
-            
+
             double[] newParams = {alpha0(),d0(),alpha(),d()};
             double[] newGrad   = grad;
             for (int t = 0; t < 10; t++) { // run Hamiltonian dynamics
@@ -491,7 +483,7 @@ public class PDIA implements Serializable {
      * @param score
      * @param counts
      */
-    public void sampleBeta(double score, HashMap<Integer,Integer>[] counts) {
+    public void sampleBeta(double score, HashMap<Integer,int[]> counts) {
         double oldLikelihood = score - beta + Math.log(beta);
         double oldBeta = beta;
         beta = Math.exp(rnd.nextGaussian() + Math.log(beta));
@@ -526,11 +518,12 @@ public class PDIA implements Serializable {
      * Same as clean(), but with the count pre-computed for speed
      * @param counts
      */
-    public void clean(HashMap<Integer,Integer>[] counts) {
+    public void clean(HashMap<Integer,int[]> counts) {
         ArrayList<Integer> toClear = new ArrayList<Integer>();
         for (int i = 0; i < numSymbols; i++) {
             for (Integer j : delta[i].keySet()) {
-                if (!counts[i].containsKey(j)) {
+                int[] cts = counts.get(j);
+                if (cts == null || cts[i] == 0) {
                     toClear.add(j);
                 }
             }
@@ -606,7 +599,7 @@ public class PDIA implements Serializable {
             }
         }
     }
-    
+
     /**
      * After having been saved by calling sample(...), loads all the samples
      * from one run of the MCMC chain into an ArrayList.
@@ -643,36 +636,28 @@ public class PDIA implements Serializable {
      * @return Average per-character coding length of the testing data.
      */
     public static double logLoss(List<PDIA> ps, int n) {
-        HashMap<Integer, Integer>[][] counts = new HashMap[ps.size()][];
-        HashMap<Integer, Integer>[] stateCounts = new HashMap[ps.size()];
-        double[][] scores = new double[ps.get(0).testingData.size()][];
+        HashMap<Integer, int[]>[] counts = new HashMap[ps.size()];
+        double[][] scores = new double[ps.get(0).testingData.length][];
         for (int j = 0; j < scores.length; j++) {
-            scores[j] = new double[ps.get(0).testingData.get(j).size()];
+            scores[j] = new double[ps.get(0).testingData[j].length];
         }
         for (int t = 0; t < n; t++) {
             for (int i = 0; i < ps.size(); i++) {
                 PDIA p = ps.get(i);
                 counts[i] = p.trainCount();
-                stateCounts[i] = p.stateCount(counts[i]);
                 for (int j = 0; j < scores.length; j++) {
                     int state = 0;
                     for (int k = 0; k < scores[j].length; k++) {
-                        int symbol = p.testingData.get(j).get(k);
-                        Integer ct = counts[i][symbol].get(state);
-                        Integer sct = stateCounts[i].get(state);
-                        if (ct != null) {
-                            scores[j][k] += (ct + p.beta() / p.numSymbols) / (sct + p.beta()) / n / ps.size();
-                            counts[i][symbol].put(state, ct + 1);
-                            stateCounts[i].put(state, sct + 1);
+                        int symbol = p.testingData[j][k];
+                        int[] cts = counts[i].get(state);
+                        if (cts != null) {
+                            scores[j][k] += (cts[symbol] + p.beta() / p.numSymbols) / (sum(cts) + p.beta()) / n / ps.size();
+                            cts[symbol] ++;
                         } else {
-                            if (sct != null) {
-                                scores[j][k] += (p.beta() / p.numSymbols) / (sct + p.beta()) / n / ps.size();
-                                stateCounts[i].put(state, sct + 1);
-                            } else {
-                                scores[j][k] += 1 / p.numSymbols / n / ps.size();
-                                stateCounts[i].put(state, 1);
-                            }
-                            counts[i][symbol].put(state, 1);
+                            cts = new int[p.numSymbols];
+                            scores[j][k] += 1 / p.numSymbols / n / ps.size();
+                            cts[symbol] ++;
+                            counts[i].put(state, cts);
                         }
                         state = p.next(state, symbol);
                     }
