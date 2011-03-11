@@ -21,12 +21,11 @@ public class Main {
                 data.add(foo);
             }
             PDIA pdia = new PDIA(data,Integer.parseInt(args[3]),Integer.parseInt(args[4]));
-            pdia.sample(100,10,1000,args[0] + "results/" + args[1] + "." + args[2]);
+            PDIA[] ps = PDIA.sample(pdia,100,10,1000);
+            System.out.println(PDIA.logLoss(ps, 10));
 
         } catch (java.io.IOException e) {
             e.printStackTrace();
         }
-        ArrayList<PDIA> ps = PDIA.load(args[0] + "results/" + args[1] + "." + args[2]);
-        System.out.println(PDIA.logLoss(ps.subList(50, 60), 10));
     }
 }

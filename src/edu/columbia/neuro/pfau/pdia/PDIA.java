@@ -11,9 +11,12 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.io.PipedInputStream;
+import java.io.PipedOutputStream;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Random;
@@ -23,7 +26,7 @@ import java.util.Set;
  *
  * @author davidpfau
  */
-public class PDIA implements Serializable {
+public class PDIA implements Serializable, Iterable<PDIA>, Iterator<PDIA> {
 
     private HashMap<Integer,Integer>[] delta;
     private double beta;
@@ -575,52 +578,15 @@ public class PDIA implements Serializable {
      * @param path The folder into which the samples are saved.
      * @param name The prefix of the filename for each saved PDIA.
      */
-    public void sample(int burnIn, int jump, int samples, String path) {
-        FileOutputStream fos = null;
-        ObjectOutputStream out = null;
-        for (int i = 0; i < burnIn; i++) {
-            sample();
-            System.out.println("Burn In Sample " + i);
-        }
-        for (int i = 0; i <= samples; i++) {
-            System.out.println("Writing sample " + i + " of " + samples);
-            try {
-                fos = new FileOutputStream(path + "." + i + ".pdia");
-                out = new ObjectOutputStream(fos);
-                out.writeObject(this);
-                out.close();
-            } catch (IOException e) {
-                e.printStackTrace();
+    public static PDIA[] sample(PDIA pdia, int burnIn, int jump, int samples) {
+        PDIA[] ps = new PDIA[samples];
+        int i = 0;
+        for (PDIA p : pdia) {
+            if (i > burnIn + jump * (samples-1)) break;
+            if (i >= burnIn && (i-burnIn)%jump == 0) {
+                ps[(i-burnIn)/jump] = p.clone();
             }
-            if (i < samples) {
-                for (int j = 0; j < jump; j++) {
-                    sample();
-                }
-            }
-        }
-    }
-
-    /**
-     * After having been saved by calling sample(...), loads all the samples
-     * from one run of the MCMC chain into an ArrayList.
-     * @param path The folder in which the samples are saved + prefix of the files.
-     * @return An ArrayList of PDIAs from the same MCMC chain.
-     */
-    public static ArrayList<PDIA> load(String path) {
-        FileInputStream fis  = null;
-        ObjectInputStream in = null;
-        ArrayList<PDIA> ps = new ArrayList<PDIA>();
-        for (int i = 0; true; i++) {
-            File f = new File(path + "." + i + ".pdia");
-            if (!f.exists()) break;
-            try {
-                fis = new FileInputStream(f);
-                in  = new ObjectInputStream(fis);
-                PDIA p = (PDIA)in.readObject();
-                ps.add(p);
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
+            i++;
         }
         return ps;
     }
@@ -635,15 +601,15 @@ public class PDIA implements Serializable {
      * transitions
      * @return Average per-character coding length of the testing data.
      */
-    public static double logLoss(List<PDIA> ps, int n) {
-        HashMap<Integer, int[]>[] counts = new HashMap[ps.size()];
-        double[][] scores = new double[ps.get(0).testingData.length][];
+    public static double logLoss(PDIA[] ps, int n) {
+        HashMap<Integer, int[]>[] counts = new HashMap[ps.length];
+        double[][] scores = new double[ps[0].testingData.length][];
         for (int j = 0; j < scores.length; j++) {
-            scores[j] = new double[ps.get(0).testingData[j].length];
+            scores[j] = new double[ps[0].testingData[j].length];
         }
         for (int t = 0; t < n; t++) {
-            for (int i = 0; i < ps.size(); i++) {
-                PDIA p = ps.get(i);
+            for (int i = 0; i < ps.length; i++) {
+                PDIA p = ps[i];
                 counts[i] = p.trainCount();
                 for (int j = 0; j < scores.length; j++) {
                     int state = 0;
@@ -651,11 +617,11 @@ public class PDIA implements Serializable {
                         int symbol = p.testingData[j][k];
                         int[] cts = counts[i].get(state);
                         if (cts != null) {
-                            scores[j][k] += (cts[symbol] + p.beta() / p.numSymbols) / (sum(cts) + p.beta()) / n / ps.size();
+                            scores[j][k] += (cts[symbol] + p.beta() / p.numSymbols) / (sum(cts) + p.beta()) / n / ps.length;
                             cts[symbol] ++;
                         } else {
                             cts = new int[p.numSymbols];
-                            scores[j][k] += 1 / p.numSymbols / n / ps.size();
+                            scores[j][k] += 1 / p.numSymbols / n / ps.length;
                             cts[symbol] ++;
                             counts[i].put(state, cts);
                         }
@@ -674,6 +640,44 @@ public class PDIA implements Serializable {
             len += scores[j].length;
         }
         return -score/len/Math.log(2);
+    }
+
+    @Override
+    public Iterator iterator() {
+        return this;
+    }
+
+    @Override
+    public boolean hasNext() {
+        return true;
+    }
+
+    @Override
+    public PDIA next() {
+        sample();
+        return this;
+    }
+
+    @Override
+    public void remove() {
+
+    }
+
+    @Override
+    public PDIA clone() {
+        try {
+            PipedInputStream pis = new PipedInputStream();
+            ObjectInputStream ois = new ObjectInputStream(pis);
+            PipedOutputStream pos = new PipedOutputStream(pis);
+            ObjectOutputStream oos = new ObjectOutputStream(pos);
+            pis.connect(pos);
+            oos.writeObject(this);
+            return (PDIA)ois.readObject();
+        } catch (Exception e) {
+            e.printStackTrace();
+            return this.clone();
+        }
+
     }
 }
 
