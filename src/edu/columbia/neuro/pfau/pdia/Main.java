@@ -20,9 +20,9 @@ public class Main {
                 }
                 data.add(foo);
             }
-            PDIA pdia = new PDIA(data,Integer.parseInt(args[3]),Integer.parseInt(args[4]));
-            PDIA[] ps = PDIA.sample(pdia,100,10,1000);
-            System.out.println(PDIA.logLoss(ps, 10));
+            PDIA2 pdia = new PDIA2(data,Integer.parseInt(args[3]),Integer.parseInt(args[4]));
+            PDIA2[] ps = PDIA2.sample(pdia,0,1,1000);
+            System.out.println(PDIA2.logLoss(ps, 10));
 
         } catch (java.io.IOException e) {
             e.printStackTrace();

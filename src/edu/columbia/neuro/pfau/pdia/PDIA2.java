@@ -5,13 +5,14 @@
 
 package edu.columbia.neuro.pfau.pdia;
 
+import gnu.trove.map.hash.TIntIntHashMap;
+import gnu.trove.map.hash.TIntObjectHashMap;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.Random;
@@ -21,9 +22,9 @@ import java.util.Set;
  *
  * @author davidpfau
  */
-public class PDIA implements Serializable, Iterable<PDIA>, Iterator<PDIA> {
+public class PDIA2 implements Serializable, Iterable<PDIA2>, Iterator<PDIA2> {
 
-    private HashMap<Integer,Integer>[] delta;
+    private TIntIntHashMap[] delta;
     private double beta;
     private int numSymbols;
 
@@ -39,17 +40,17 @@ public class PDIA implements Serializable, Iterable<PDIA>, Iterator<PDIA> {
      * Constructor for an empty PDIA
      * @param nsym The number of symbols in your (yet to be provided) data
      */
-    public PDIA(int nsym) {
+    public PDIA2(int nsym) {
         rnd.setSeed(1234); // for debugging only
         beta = 1.0;
         alphabet = new ArrayList<Object>();
         top = new Restaurant<Table<Integer>,Integer>(1,0.1,new Geometric(0.001));
 
         numSymbols = nsym;
-        delta = new HashMap[nsym];
+        delta = new TIntIntHashMap[nsym];
         restaurants = new ArrayList<Restaurant<Integer,Integer>>();
         for (int i = 0; i < nsym; i++) {
-            delta[i] = new HashMap<Integer,Integer>();
+            delta[i] = new TIntIntHashMap();
             restaurants.add(new Restaurant<Integer,Integer>(1,0.1,top));
         }
 
@@ -63,12 +64,12 @@ public class PDIA implements Serializable, Iterable<PDIA>, Iterator<PDIA> {
      * @param nTrain The number of elements in the array data that are for training (the rest are for testing)
      * @param nsym The number of unique symbols in the data
      */
-    public PDIA(ArrayList<ArrayList<Object>> data, int nTrain, int nsym) {
+    public PDIA2(ArrayList<ArrayList<Object>> data, int nTrain, int nsym) {
         rnd.setSeed(124); // for debugging only
         numSymbols = nsym;
-        delta = new HashMap[nsym];
+        delta = new TIntIntHashMap[nsym];
         for (int i = 0; i < nsym; i++) {
-            delta[i] = new HashMap<Integer,Integer>();
+            delta[i] = new TIntIntHashMap();
         }
         beta = 1.0;
         alphabet = new ArrayList<Object>();
@@ -130,9 +131,9 @@ public class PDIA implements Serializable, Iterable<PDIA>, Iterator<PDIA> {
      * that state
      * @return Log likelihood of the sequence that generated the counts
      */
-    public double dataLogLikelihood(HashMap<Integer,int[]> counts) {
+    public double dataLogLikelihood(TIntObjectHashMap<int[]> counts) {
         double logLike = 0.0;
-        for (int[] arr : counts.values()) {
+        for (int[] arr : counts.valueCollection()) {
             for (int i = 0; i < arr.length; i++) {
                 logLike += Gamma.logGamma(arr[i] + beta/numSymbols) - Gamma.logGamma(beta/numSymbols);
             }
@@ -206,8 +207,8 @@ public class PDIA implements Serializable, Iterable<PDIA>, Iterator<PDIA> {
      * @return The state that follows this one given the observed symbol
      */
     public int next(int state, int symbol) {
-        Integer nxt = delta[symbol].get(state);
-        if (nxt == null) {
+        int nxt = delta[symbol].get(state);
+        if (nxt == 0) {
             Restaurant r = restaurants.get(symbol);
             Integer dish = (Integer)r.seat(state);
             delta[symbol].put(state, dish);
@@ -228,8 +229,8 @@ public class PDIA implements Serializable, Iterable<PDIA>, Iterator<PDIA> {
      * @return The counts.  The array indexes symbols, the HashMap keys index
      * states, the values are the counts of the corresponding state/symbol pair.
      */
-    public HashMap<Integer,int[]> count(int[][] data) {
-        HashMap<Integer,int[]> counts = new HashMap<Integer,int[]>();
+    public TIntObjectHashMap<int[]> count(int[][] data) {
+        TIntObjectHashMap<int[]> counts = new TIntObjectHashMap<int[]>(top.tables()+100);
         for (int i = 0; i < data.length; i++) {
             int state = 0;
             for (int j = 0; j < data[i].length; j ++) {
@@ -252,7 +253,7 @@ public class PDIA implements Serializable, Iterable<PDIA>, Iterator<PDIA> {
      * @return For each state/symbol pair, how many times is that pair observed
      * in the training data?
      */
-    public HashMap<Integer,int[]> trainCount() {
+    public TIntObjectHashMap<int[]> trainCount() {
         return count(trainingData);
     }
 
@@ -260,8 +261,8 @@ public class PDIA implements Serializable, Iterable<PDIA>, Iterator<PDIA> {
      * @return For each state/symbol pair, how many times is that pair observed
      * in the testing data?
      */
-    public HashMap<Integer,int[]> testCount() {
-        HashMap<Integer,int[]> counts = count(testingData);
+    public TIntObjectHashMap<int[]> testCount() {
+        TIntObjectHashMap<int[]> counts = count(testingData);
         clean();
         return counts;
     }
@@ -293,7 +294,7 @@ public class PDIA implements Serializable, Iterable<PDIA>, Iterator<PDIA> {
      * training data
      */
     public boolean hasPair(int state, int symbol) {
-        return delta[symbol].get(state) != null;
+        return delta[symbol].containsKey(state);
     }
 
     /**
@@ -339,6 +340,7 @@ public class PDIA implements Serializable, Iterable<PDIA>, Iterator<PDIA> {
         for (int x = 0; x < 5; x++) {
             sampleBeta(s.score, s.count);
         }
+        System.out.println(s.score);
     }
 
     private suffStat sampleEntries(Restaurant r, suffStat s1) {
@@ -367,7 +369,7 @@ public class PDIA implements Serializable, Iterable<PDIA>, Iterator<PDIA> {
 
     private class suffStat {
         double score;
-        HashMap<Integer,int[]> count;
+        TIntObjectHashMap<int[]> count;
 
         public suffStat() {
             count = trainCount();
@@ -481,7 +483,7 @@ public class PDIA implements Serializable, Iterable<PDIA>, Iterator<PDIA> {
      * @param score
      * @param counts
      */
-    public void sampleBeta(double score, HashMap<Integer,int[]> counts) {
+    public void sampleBeta(double score, TIntObjectHashMap<int[]> counts) {
         double oldLikelihood = score - beta + Math.log(beta);
         double oldBeta = beta;
         beta = Math.exp(rnd.nextGaussian() + Math.log(beta));
@@ -496,7 +498,7 @@ public class PDIA implements Serializable, Iterable<PDIA>, Iterator<PDIA> {
      */
     public void clear() {
         for (int i = 0; i < delta.length; i++) {
-            for (int j : delta[i].keySet()) {
+            for (int j : delta[i].keys()) {
                 LinkedList<Table<Integer>> ts = restaurants.get(i).unseat(j);
                 assert ts != null : "Cleared customer that wasn't in the restaurant!";
             }
@@ -516,10 +518,10 @@ public class PDIA implements Serializable, Iterable<PDIA>, Iterator<PDIA> {
      * Same as clean(), but with the count pre-computed for speed
      * @param counts
      */
-    public void clean(HashMap<Integer,int[]> counts) {
+    public void clean(TIntObjectHashMap<int[]> counts) {
         ArrayList<Integer> toClear = new ArrayList<Integer>();
         for (int i = 0; i < numSymbols; i++) {
-            for (Integer j : delta[i].keySet()) {
+            for (Integer j : delta[i].keys()) {
                 int[] cts = counts.get(j);
                 if (cts == null || cts[i] == 0) {
                     toClear.add(j);
@@ -537,10 +539,10 @@ public class PDIA implements Serializable, Iterable<PDIA>, Iterator<PDIA> {
      * initial state of the PDIA
      * @param transition
      */
-    public void fix(HashMap<Integer,Integer>[] transition) {
+    public void fix(TIntIntHashMap[] transition) {
         clear();
         for (int i = 0; i < transition.length; i++) {
-            for (Integer j : transition[i].keySet()) {
+            for (int j : transition[i].keys()) {
                 Integer k = transition[i].get(j);
                 delta[i].put(j, k);
                 restaurants.get(i).seat(j, k);
@@ -555,7 +557,7 @@ public class PDIA implements Serializable, Iterable<PDIA>, Iterator<PDIA> {
     public void fix() {
         for (int i = 0; i < numSymbols; i++) {
             Restaurant r = restaurants.get(i);
-            for (Integer j : delta[i].keySet()) {
+            for (Integer j : delta[i].keys()) {
                 delta[i].put(j, (Integer)(r.dish(j)));
             }
             for (Object o : r.getCustomers()) {
@@ -573,10 +575,10 @@ public class PDIA implements Serializable, Iterable<PDIA>, Iterator<PDIA> {
      * @param path The folder into which the samples are saved.
      * @param name The prefix of the filename for each saved PDIA.
      */
-    public static PDIA[] sample(PDIA pdia, int burnIn, int jump, int samples) {
-        PDIA[] ps = new PDIA[samples];
+    public static PDIA2[] sample(PDIA2 pdia, int burnIn, int jump, int samples) {
+        PDIA2[] ps = new PDIA2[samples];
         int i = 0;
-        for (PDIA p : pdia) {
+        for (PDIA2 p : pdia) {
             if (i > burnIn + jump * (samples-1)) break;
             if (i >= burnIn && (i-burnIn)%jump == 0) {
                 ps[(i-burnIn)/jump] = p.clone();
@@ -596,15 +598,15 @@ public class PDIA implements Serializable, Iterable<PDIA>, Iterator<PDIA> {
      * transitions
      * @return Average per-character coding length of the testing data.
      */
-    public static double logLoss(PDIA[] ps, int n) {
-        HashMap<Integer, int[]>[] counts = new HashMap[ps.length];
+    public static double logLoss(PDIA2[] ps, int n) {
+        TIntObjectHashMap<int[]>[] counts = new TIntObjectHashMap[ps.length];
         double[][] scores = new double[ps[0].testingData.length][];
         for (int j = 0; j < scores.length; j++) {
             scores[j] = new double[ps[0].testingData[j].length];
         }
         for (int t = 0; t < n; t++) {
             for (int i = 0; i < ps.length; i++) {
-                PDIA p = ps[i];
+                PDIA2 p = ps[i];
                 counts[i] = p.trainCount();
                 for (int j = 0; j < scores.length; j++) {
                     int state = 0;
@@ -645,7 +647,7 @@ public class PDIA implements Serializable, Iterable<PDIA>, Iterator<PDIA> {
         return true;
     }
 
-    public PDIA next() {
+    public PDIA2 next() {
         sample();
         return this;
     }
@@ -655,8 +657,8 @@ public class PDIA implements Serializable, Iterable<PDIA>, Iterator<PDIA> {
     }
 
     @Override
-    public PDIA clone() {
-        PDIA copy = null;
+    public PDIA2 clone() {
+        PDIA2 copy = null;
         try {
             ByteArrayOutputStream bos = new ByteArrayOutputStream();
             ObjectOutputStream out = new ObjectOutputStream(bos);
@@ -665,7 +667,7 @@ public class PDIA implements Serializable, Iterable<PDIA>, Iterator<PDIA> {
             out.close();
 
             ObjectInputStream in = new ObjectInputStream(new ByteArrayInputStream(bos.toByteArray()));
-            copy = (PDIA)in.readObject();
+            copy = (PDIA2)in.readObject();
         }
         catch(Exception e) {
             e.printStackTrace();
