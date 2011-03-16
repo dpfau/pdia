@@ -618,7 +618,7 @@ public class PDIA2 implements Serializable, Iterable<PDIA2>, Iterator<PDIA2> {
                             cts[symbol] ++;
                         } else {
                             cts = new int[p.numSymbols];
-                            scores[j][k] += 1 / p.numSymbols / n / ps.length;
+                            scores[j][k] += 1.0 / p.numSymbols / n / ps.length;
                             cts[symbol] ++;
                             counts[i].put(state, cts);
                         }
