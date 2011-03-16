@@ -230,7 +230,7 @@ public class PDIA2 implements Serializable, Iterable<PDIA2>, Iterator<PDIA2> {
      * states, the values are the counts of the corresponding state/symbol pair.
      */
     public TIntObjectHashMap<int[]> count(int[][] data) {
-        TIntObjectHashMap<int[]> counts = new TIntObjectHashMap<int[]>(top.tables()+100);
+        TIntObjectHashMap<int[]> counts = new TIntObjectHashMap<int[]>();
         for (int i = 0; i < data.length; i++) {
             int state = 0;
             for (int j = 0; j < data[i].length; j ++) {
