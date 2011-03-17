@@ -51,7 +51,7 @@ public class Main
           }
       }
 
-      symbolLines = new int[100][];
+      symbolLines = new int[99][];
       int i = 0;
       int line = 0;
       for (int j = 0; j < symbols.length; j++) {
@@ -62,7 +62,6 @@ public class Main
               line ++;
           }
       }
-      symbolLines[99] = new int[0];
     }
     finally {
       if (bis != null)
@@ -78,7 +77,7 @@ public class Main
       int b;
       while ((b = bis.read()) > -1)
         testSymbols[(ind++)] = alphabet.get(b);
-      testSymbolLines = new int[50][];
+      testSymbolLines = new int[49][];
       int i = 0;
       int line = 0;
       for (int j = 0; j < testSymbols.length; j++) {
