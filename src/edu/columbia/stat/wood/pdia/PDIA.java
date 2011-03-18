@@ -16,11 +16,11 @@ public class PDIA implements Serializable {
     public HashMap<Integer, int[]> cMatrix;
     public int nSymbols;
     public MutableDouble beta;
-    public int[][] symbols;
+    public int[][] data;
     public static Random RNG = new Random(0L);
 
     public PDIA(int nSymbols, int[][] symbols) {
-        this.symbols = symbols;
+        this.data = symbols;
         rf = new RestaurantFranchise(1);
         this.nSymbols = nSymbols;
         dMatrix = new HashMap();
@@ -36,26 +36,26 @@ public class PDIA implements Serializable {
         cMatrix = new HashMap();
         int[] context = new int[1];
 
-        for (int i = 0; i < symbols.length; i++) {
+        for (int i = 0; i < data.length; i++) {
             int state = 0;
-            for (int j = 0; j < symbols[i].length; j++) {
-                int[] counts = (int[]) cMatrix.get(state);
+            for (int j = 0; j < data[i].length; j++) {
+                int[] counts = cMatrix.get(state);
 
                 if (counts == null) {
                     counts = new int[nSymbols];
                     cMatrix.put(state, counts);
                 }
 
-                counts[symbols[i][j]] += 1;
+                counts[data[i][j]] += 1;
 
-                Pair ssp = new Pair(state, symbols[i][j]);
-                Integer nextState = (Integer) dMatrix.get(ssp);
+                Pair p = new Pair(state, data[i][j]);
+                Integer nextState = dMatrix.get(p);
 
                 if (nextState == null) {
-                    context[0] = symbols[i][j];
+                    context[0] = data[i][j];
                     nextState = rf.generate(context);
                     rf.seat(nextState, context);
-                    dMatrix.put(ssp, nextState);
+                    dMatrix.put(p, nextState);
                 }
 
                 state = nextState;
@@ -63,11 +63,11 @@ public class PDIA implements Serializable {
         }
     }
 
-    public int nextState() {
+    public int endState(int line) {
         int state = 0;
-        for (int j = 0; j < symbols[symbols.length - 1].length; j++) {
-            Pair ssp = new Pair(state, symbols[symbols.length - 1][j]);
-            Integer nextState = dMatrix.get(ssp);
+        for (int j = 0; j < data[line].length; j++) {
+            Pair p = new Pair(state, data[line][j]);
+            Integer nextState = dMatrix.get(p);
 
             assert (nextState != null);
 
@@ -75,6 +75,10 @@ public class PDIA implements Serializable {
         }
 
         return state;
+    }
+
+    public int endState() {
+        return endState(data.length - 1);
     }
 
     public double jointScore() {
