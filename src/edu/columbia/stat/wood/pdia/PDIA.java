@@ -1,334 +1,305 @@
 package edu.columbia.stat.wood.pdia;
 
-import fdhpyp.MutableDouble;
-import fdhpyp.MutableInteger;
-import fdhpyp.Restaurant;
-import fdhpyp.RestaurantFranchise;
+import edu.columbia.stat.wood.hpyp.MutableDouble;
+import edu.columbia.stat.wood.hpyp.MutableInteger;
+import edu.columbia.stat.wood.hpyp.RestaurantFranchise;
 import java.io.Serializable;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Random;
 import org.apache.commons.math.special.Gamma;
 
-public class PDIA
-  implements Serializable
-{
-  public RestaurantFranchise rf;
-  public HashMap<StateSymbolPair, Integer> dMatrix;
-  public HashMap<Integer, int[]> cMatrix;
-  public int nSymbols;
-  public MutableDouble beta;
-  public int[][] symbols;
-  public static Random RNG;
+public class PDIA implements Serializable {
 
-  public PDIA(int nSymbols, int[][] symbols)
-  {
-    this.symbols = symbols;
-    this.rf = new RestaurantFranchise(1);
-    this.nSymbols = nSymbols;
-    this.dMatrix = new HashMap();
-    this.beta = new MutableDouble(10.0D);
-    fillCMatrix();
-  }
+    public RestaurantFranchise rf;
+    public HashMap<Pair, Integer> dMatrix;
+    public HashMap<Integer, int[]> cMatrix;
+    public int nSymbols;
+    public MutableDouble beta;
+    public int[][] symbols;
+    public static Random RNG = new Random(0L);
 
-  public int states() {
-    return this.cMatrix.size();
-  }
+    public PDIA(int nSymbols, int[][] symbols) {
+        this.symbols = symbols;
+        rf = new RestaurantFranchise(1);
+        this.nSymbols = nSymbols;
+        dMatrix = new HashMap();
+        beta = new MutableDouble(10.0);
+        fillCMatrix();
+    }
 
-  public void fillCMatrix()
-  {
-    this.cMatrix = new HashMap();
-    int[] context = new int[1];
+    public int states() {
+        return cMatrix.size();
+    }
 
-    for (int i = 0; i < this.symbols.length; i++) {
-      int state = 0;
-      for (int j = 0; j < this.symbols[i].length; j++) {
-        int[] counts = (int[])this.cMatrix.get(Integer.valueOf(state));
+    public void fillCMatrix() {
+        cMatrix = new HashMap();
+        int[] context = new int[1];
 
-        if (counts == null) {
-          counts = new int[this.nSymbols];
-          this.cMatrix.put(Integer.valueOf(state), counts);
+        for (int i = 0; i < symbols.length; i++) {
+            int state = 0;
+            for (int j = 0; j < symbols[i].length; j++) {
+                int[] counts = (int[]) cMatrix.get(state);
+
+                if (counts == null) {
+                    counts = new int[nSymbols];
+                    cMatrix.put(state, counts);
+                }
+
+                counts[symbols[i][j]] += 1;
+
+                Pair ssp = new Pair(state, symbols[i][j]);
+                Integer nextState = (Integer) dMatrix.get(ssp);
+
+                if (nextState == null) {
+                    context[0] = symbols[i][j];
+                    nextState = rf.generate(context);
+                    rf.seat(nextState, context);
+                    dMatrix.put(ssp, nextState);
+                }
+
+                state = nextState;
+            }
+        }
+    }
+
+    public int nextState() {
+        int state = 0;
+        for (int j = 0; j < symbols[symbols.length - 1].length; j++) {
+            Pair ssp = new Pair(state, symbols[symbols.length - 1][j]);
+            Integer nextState = dMatrix.get(ssp);
+
+            assert (nextState != null);
+
+            state = nextState;
         }
 
-        counts[this.symbols[i][j]] += 1;
+        return state;
+    }
 
-        StateSymbolPair ssp = new StateSymbolPair(state, this.symbols[i][j]);
-        Integer nextState = (Integer)this.dMatrix.get(ssp);
+    public double jointScore() {
+        return logLik() + rf.logLik();
+    }
 
-        if (nextState == null) {
-          context[0] = this.symbols[i][j];
-          nextState = Integer.valueOf(this.rf.generate(context));
-          this.rf.seat(nextState.intValue(), context);
-          this.dMatrix.put(ssp, nextState);
+    public double logLik() {
+        double logLik = 0;
+        double logGammaBeta = Gamma.logGamma(beta.doubleVal());
+        double betaOverN = beta.doubleVal() / nSymbols;
+        double logGammaBetaOverN = Gamma.logGamma(betaOverN);
+
+        for (Integer state : cMatrix.keySet()) {
+            int[] counts = (int[]) cMatrix.get(state);
+
+            logLik += logGammaBeta;
+
+            int rowSum = 0;
+            for (int count : counts) {
+                if (count != 0) {
+                    logLik += Gamma.logGamma(betaOverN + count);
+                    logLik -= logGammaBetaOverN;
+                    rowSum += count;
+                }
+            }
+
+            logLik -= Gamma.logGamma(beta.doubleVal() + rowSum);
         }
 
-        state = nextState.intValue();
-      }
-    }
-  }
-
-  public int nextState()
-  {
-    int state = 0;
-    for (int j = 0; j < this.symbols[(this.symbols.length - 1)].length; j++) {
-      StateSymbolPair ssp = new StateSymbolPair(state, this.symbols[(this.symbols.length - 1)][j]);
-      Integer nextState = (Integer)this.dMatrix.get(ssp);
-
-      assert (nextState != null);
-
-      state = nextState.intValue();
+        return logLik;
     }
 
-    return state;
-  }
+    public void sample() {
+        sampleD();
+        rf.sample();
+        sampleBeta(1.0);
+    }
 
-  public double jointScore() {
-    return logLik() + this.rf.logLik();
-  }
+    public void sampleBeta(double proposalSTD) {
+        double logLik = logLik();
+        double currentBeta = beta.doubleVal();
 
-  public double logLik()
-  {
-    double logLik = 0.0D;
-    double logGammaBeta = Gamma.logGamma(this.beta.doubleVal());
-    double betaOverN = this.beta.doubleVal() / this.nSymbols;
-    double logGammaBetaOverN = Gamma.logGamma(betaOverN);
-
-    for (Integer state : this.cMatrix.keySet()) {
-      int[] counts = (int[])this.cMatrix.get(state);
-
-      logLik += logGammaBeta;
-
-      int rowSum = 0;
-      for (int count : counts) {
-        if (count != 0) {
-          logLik += Gamma.logGamma(betaOverN + count);
-          logLik -= logGammaBetaOverN;
-          rowSum += count;
+        double proposal = currentBeta + RNG.nextGaussian() * proposalSTD;
+        if (proposal <= 0) {
+            return;
         }
-      }
-
-      logLik -= Gamma.logGamma(this.beta.doubleVal() + rowSum);
+        beta.set(proposal);
+        double pLogLik = logLik();
+        double r = Math.exp(pLogLik - logLik - proposal + currentBeta);
+        if (RNG.nextDouble() >= r) {
+            beta.set(currentBeta);
+        }
     }
 
-    return logLik;
-  }
-
-  public void sample() {
-    sampleD();
-    this.rf.sample();
-    sampleBeta(1.0D);
-  }
-
-  public void sampleBeta(double proposalSTD)
-  {
-    double logLik = logLik();
-    double currentBeta = this.beta.doubleVal();
-
-    double proposal = currentBeta + RNG.nextGaussian() * proposalSTD;
-    if (proposal <= 0.0D) {
-      return;
-    }
-    this.beta.set(proposal);
-    double pLogLik = logLik();
-    double r = Math.exp(pLogLik - logLik - proposal + currentBeta);
-    boolean accept = RNG.nextDouble() < r;
-    if (!accept)
-      this.beta.set(currentBeta);
-  }
-
-  public void sampleD()
-  {
-    StateSymbolPair[] randomSSPArray = randomSSPArray();
-    for (StateSymbolPair ssp : randomSSPArray) {
-      if (this.dMatrix.get(ssp) != null) {
-        sampleD(ssp);
-      }
-      fixDMatrix();
-    }
-  }
-
-  public void sampleD(StateSymbolPair ssp)
-  {
-    int[] context = new int[1];
-    double logLik = logLik();
-    Integer currentType = (Integer)this.dMatrix.get(ssp);
-    assert (currentType != null);
-
-    context[0] = ssp.symbol;
-    this.rf.unseat(currentType.intValue(), context);
-    Integer proposedType = Integer.valueOf(this.rf.generate(context));
-    this.rf.seat(currentType.intValue(), context);
-    this.dMatrix.put(ssp, proposedType);
-
-    fillCMatrix();
-    double pLogLik = logLik();
-
-    double r = Math.exp(pLogLik - logLik);
-    boolean accept = RNG.nextDouble() < r;
-
-    if (accept) {
-      this.rf.unseat(currentType.intValue(), context);
-      this.rf.seat(proposedType.intValue(), context);
-    } else {
-      this.dMatrix.put(ssp, currentType);
-    }
-  }
-
-  public void fixDMatrix()
-  {
-    fillCMatrix();
-    HashSet<StateSymbolPair> keysToDiscard = new HashSet();
-
-    for (StateSymbolPair ssp : this.dMatrix.keySet()) {
-      int[] counts = (int[])this.cMatrix.get(Integer.valueOf(ssp.state));
-      if ((counts == null) || (counts[ssp.symbol] == 0)) {
-        keysToDiscard.add(ssp);
-      }
+    public void sampleD() {
+        Pair[] randomSSPArray = randomPairArray();
+        for (Pair p : randomSSPArray) {
+            if (dMatrix.get(p) != null) {
+                sampleD(p);
+            }
+            fixDMatrix();
+        }
     }
 
-    int[] context = new int[1];
-    for (StateSymbolPair ssp : keysToDiscard) {
-      context[0] = ssp.symbol;
-      this.rf.unseat(((Integer)this.dMatrix.get(ssp)).intValue(), context);
-      this.dMatrix.remove(ssp);
+    public void sampleD(Pair p) {
+        int[] context = new int[]{p.symbol};
+        double logLik = logLik();
+        Integer currentType = dMatrix.get(p);
+        assert (currentType != null);
+
+        rf.unseat(currentType, context);
+        Integer proposedType = rf.generate(context);
+        rf.seat(currentType, context);
+        dMatrix.put(p, proposedType);
+
+        fillCMatrix();
+        double pLogLik = logLik();
+
+        if (RNG.nextDouble() < Math.exp(pLogLik - logLik)) {
+            rf.unseat(currentType, context);
+            rf.seat(proposedType, context);
+        } else {
+            dMatrix.put(p, currentType);
+        }
     }
-  }
 
-  public double[] score(int[][] testSymbols, int initialState)
-  {
-    int totalLength = 0;
-    for (int i = 0; i < testSymbols.length; i++) {
-      totalLength += testSymbols[i].length;
-    }
+    public void fixDMatrix() {
+        fillCMatrix();
+        HashSet<Pair> keysToDiscard = new HashSet();
 
-    double[] score = new double[totalLength];
-    int[] context = new int[1];
-
-    int index = 0;
-    for (int i = 0; i < testSymbols.length; i++)
-    {
-      int state;
-      if (i == 0)
-        state = initialState;
-      else {
-        state = 0;
-      }
-      for (int j = 0; j < testSymbols[i].length; j++) {
-        int[] counts = (int[])this.cMatrix.get(Integer.valueOf(state));
-        if (counts == null) {
-          counts = new int[this.nSymbols];
-          this.cMatrix.put(Integer.valueOf(state), counts);
+        for (Pair p : dMatrix.keySet()) {
+            int[] counts = cMatrix.get(p.state);
+            if ((counts == null) || (counts[p.symbol] == 0)) {
+                keysToDiscard.add(p);
+            }
         }
 
-        int totalCount = 0;
-        for (int c : counts) {
-          totalCount += c;
+        int[] context = new int[1];
+        for (Pair p : keysToDiscard) {
+            context[0] = p.symbol;
+            rf.unseat(dMatrix.get(p), context);
+            dMatrix.remove(p);
+        }
+    }
+
+    public double[] score(int[][] testSymbols, int initialState) {
+        int totalLength = 0;
+        for (int i = 0; i < testSymbols.length; i++) {
+            totalLength += testSymbols[i].length;
         }
 
-        score[(index++)] = ((counts[testSymbols[i][j]] + this.beta.doubleVal() / this.nSymbols) / (totalCount + this.beta.doubleVal()));
+        double[] score = new double[totalLength];
+        int[] context = new int[1];
 
-        counts[testSymbols[i][j]] += 1;
+        int index = 0;
+        for (int i = 0; i < testSymbols.length; i++) {
+            int state;
+            if (i == 0) {
+                state = initialState;
+            } else {
+                state = 0;
+            }
+            for (int j = 0; j < testSymbols[i].length; j++) {
+                int[] counts = cMatrix.get(state);
+                if (counts == null) {
+                    counts = new int[nSymbols];
+                    cMatrix.put(state, counts);
+                }
 
-        StateSymbolPair ssp = new StateSymbolPair(state, testSymbols[i][j]);
-        Integer nextState = (Integer)this.dMatrix.get(ssp);
+                int totalCount = 0;
+                for (int c : counts) {
+                    totalCount += c;
+                }
 
-        if (nextState == null) {
-          context[0] = testSymbols[i][j];
-          nextState = Integer.valueOf(this.rf.generate(context));
-          this.rf.seat(nextState.intValue(), context);
-          this.dMatrix.put(ssp, nextState);
+                score[(index++)] = ((counts[testSymbols[i][j]] + beta.doubleVal() / nSymbols) / (totalCount + beta.doubleVal()));
+
+                counts[testSymbols[i][j]] += 1;
+
+                Pair p = new Pair(state, testSymbols[i][j]);
+                Integer nextState = dMatrix.get(p);
+
+                if (nextState == null) {
+                    context[0] = testSymbols[i][j];
+                    nextState = rf.generate(context);
+                    rf.seat(nextState.intValue(), context);
+                    dMatrix.put(p, nextState);
+                }
+
+                state = nextState;
+            }
         }
 
-        state = nextState.intValue();
-      }
+        return score;
     }
 
-    return score;
-  }
+    public void check() {
+        HashMap dCustomerCounts = new HashMap();
+        int[] context = new int[1];
 
-  public void check()
-  {
-    HashMap dCustomerCounts = new HashMap();
-    int[] context = new int[1];
+        for (Pair p : dMatrix.keySet()) {
+            context[0] = p.symbol;
 
-    for (StateSymbolPair ssp : this.dMatrix.keySet()) {
-      context[0] = ssp.symbol;
+            HashMap typeCountMap = (HashMap) dCustomerCounts.get(p.symbol);
+            if (typeCountMap == null) {
+                typeCountMap = new HashMap();
+                dCustomerCounts.put(p.symbol, typeCountMap);
+            }
 
-      HashMap typeCountMap = (HashMap)dCustomerCounts.get(Integer.valueOf(context[0]));
-      if (typeCountMap == null) {
-        typeCountMap = new HashMap();
-        dCustomerCounts.put(Integer.valueOf(context[0]), typeCountMap);
-      }
+            Integer tKey = dMatrix.get(p);
+            MutableInteger count = (MutableInteger) typeCountMap.get(tKey);
 
-      Integer tKey = (Integer)this.dMatrix.get(ssp);
-      MutableInteger count = (MutableInteger)typeCountMap.get(tKey);
+            if (count == null) {
+                count = new MutableInteger(0);
+                typeCountMap.put(tKey, count);
+            }
 
-      if (count == null) {
-        count = new MutableInteger(0);
-        typeCountMap.put(tKey, count);
-      }
-
-      count.increment();
-    }
-
-    int[] tCounts = new int[2];
-    for (int i = 0; i < this.nSymbols; i++) {
-      context[0] = i;
-
-      for (Integer type : ((HashMap<Integer,Integer>)dCustomerCounts.get(Integer.valueOf(context[0]))).keySet()) {
-        this.rf.get(context).getCounts(type.intValue(), tCounts);
-
-        int c = tCounts[0];
-        int cc = ((MutableInteger)((HashMap)dCustomerCounts.get(Integer.valueOf(context[0]))).get(type)).intVal();
-
-        assert (tCounts[0] == ((MutableInteger)((HashMap)dCustomerCounts.get(Integer.valueOf(context[0]))).get(type)).intVal());
-      }
-    }
-  }
-
-  private StateSymbolPair[] randomSSPArray()
-  {
-    int[] randomOrder = sampleWOReplacement(this.dMatrix.size());
-    StateSymbolPair[] randomSSPArray = new StateSymbolPair[this.dMatrix.size()];
-    int ind = 0;
-
-    for (StateSymbolPair c : this.dMatrix.keySet()) {
-      randomSSPArray[randomOrder[(ind++)]] = new StateSymbolPair(c.state, c.symbol);
-    }
-
-    return randomSSPArray;
-  }
-
-  private int[] sampleWOReplacement(int n)
-  {
-    HashSet<Integer> set = new HashSet(n);
-
-    for (int i = 0; i < n; i++) {
-      set.add(Integer.valueOf(i));
-    }
-
-    int[] randomOrder = new int[n];
-    int s = set.size();
-    while (s > 0) {
-      double rand = RNG.nextDouble();
-      double cuSum = 0.0D;
-      for (Integer i : set) {
-        cuSum += 1.0D / s;
-        if (cuSum > rand) {
-          randomOrder[(n - s)] = i.intValue();
-          set.remove(i);
-          break;
+            count.increment();
         }
-      }
 
-      s = set.size();
+        int[] tCounts = new int[2];
+        for (int i = 0; i < nSymbols; i++) {
+            HashMap<Integer, Integer> hm = (HashMap<Integer,Integer>) dCustomerCounts.get(i);
+            for (Integer type : hm.keySet()) {
+                rf.get(context).getCounts(type.intValue(), tCounts);
+                assert (tCounts[0] == ((MutableInteger) ((HashMap) hm).get(type)).intVal());
+            }
+        }
     }
 
-    return randomOrder;
-  }
+    private Pair[] randomPairArray() {
+        int[] randomOrder = sampleWOReplacement(dMatrix.size());
+        Pair[] randomPairArray = new Pair[dMatrix.size()];
+        int ind = 0;
 
-  static
-  {
-    RNG = new Random(0L);
-  }
+        for (Pair c : dMatrix.keySet()) {
+            randomPairArray[randomOrder[(ind++)]] = new Pair(c.state, c.symbol);
+        }
+
+        return randomPairArray;
+    }
+
+    private int[] sampleWOReplacement(int n) {
+        HashSet<Integer> set = new HashSet(n);
+
+        for (int i = 0; i < n; i++) {
+            set.add((Integer)i);
+        }
+
+        int[] randomOrder = new int[n];
+        int s = set.size();
+        while (s > 0) {
+            double rand = RNG.nextDouble();
+            double cuSum = 0;
+            for (Integer i : set) {
+                cuSum += 1.0 / s;
+                if (cuSum > rand) {
+                    randomOrder[(n - s)] = i.intValue();
+                    set.remove(i);
+                    break;
+                }
+            }
+
+            s = set.size();
+        }
+
+        return randomOrder;
+    }
 }
