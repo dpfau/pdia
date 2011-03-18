@@ -1,5 +1,6 @@
 package edu.columbia.stat.wood.pdia;
 
+import edu.columbia.stat.wood.hpyp.Util;
 import edu.columbia.stat.wood.hpyp.MutableDouble;
 import edu.columbia.stat.wood.hpyp.MutableInteger;
 import edu.columbia.stat.wood.hpyp.RestaurantFranchise;
@@ -19,47 +20,28 @@ public class PDIA implements Serializable {
     public int[][] data;
     public static Random RNG = new Random(0L);
 
-    public PDIA(int nSymbols, int[][] symbols) {
-        this.data = symbols;
+    public PDIA(int nSymbols, int[][] data) {
+        this.data = data;
         rf = new RestaurantFranchise(1);
         this.nSymbols = nSymbols;
         dMatrix = new HashMap();
         beta = new MutableDouble(10.0);
-        fillCMatrix();
+        count();
     }
 
     public int states() {
         return cMatrix.size();
     }
 
-    public void fillCMatrix() {
+    public void count() {
         cMatrix = new HashMap();
-        int[] context = new int[1];
-
-        for (int i = 0; i < data.length; i++) {
-            int state = 0;
-            for (int j = 0; j < data[i].length; j++) {
-                int[] counts = cMatrix.get(state);
-
-                if (counts == null) {
-                    counts = new int[nSymbols];
-                    cMatrix.put(state, counts);
-                }
-
-                counts[data[i][j]] += 1;
-
-                Pair p = new Pair(state, data[i][j]);
-                Integer nextState = dMatrix.get(p);
-
-                if (nextState == null) {
-                    context[0] = data[i][j];
-                    nextState = rf.generate(context);
-                    rf.seat(nextState, context);
-                    dMatrix.put(p, nextState);
-                }
-
-                state = nextState;
+        for (Pair p : new PDIASequence(this,data)) {
+            int[] counts = cMatrix.get(p.state);
+            if (counts == null) {
+                counts = new int[nSymbols];
+                cMatrix.put(p.state, counts);
             }
+            counts[p.symbol] ++;
         }
     }
 
@@ -154,7 +136,7 @@ public class PDIA implements Serializable {
         rf.seat(currentType, context);
         dMatrix.put(p, proposedType);
 
-        fillCMatrix();
+        count();
         double pLogLik = logLik();
 
         if (RNG.nextDouble() < Math.exp(pLogLik - logLik)) {
@@ -166,7 +148,7 @@ public class PDIA implements Serializable {
     }
 
     public void fixDMatrix() {
-        fillCMatrix();
+        count();
         HashSet<Pair> keysToDiscard = new HashSet();
 
         for (Pair p : dMatrix.keySet()) {
@@ -269,41 +251,12 @@ public class PDIA implements Serializable {
     }
 
     private Pair[] randomPairArray() {
-        int[] randomOrder = sampleWOReplacement(dMatrix.size());
-        Pair[] randomPairArray = new Pair[dMatrix.size()];
-        int ind = 0;
-
-        for (Pair c : dMatrix.keySet()) {
-            randomPairArray[randomOrder[(ind++)]] = new Pair(c.state, c.symbol);
+        Object[] roa = Util.randArray(dMatrix.keySet());
+        Pair[]   rpa = new Pair[roa.length];
+        for (int i = 0; i < roa.length; i++) {
+            rpa[i] = (Pair)roa[i];
         }
-
-        return randomPairArray;
+        return rpa;
     }
 
-    private int[] sampleWOReplacement(int n) {
-        HashSet<Integer> set = new HashSet(n);
-
-        for (int i = 0; i < n; i++) {
-            set.add((Integer)i);
-        }
-
-        int[] randomOrder = new int[n];
-        int s = set.size();
-        while (s > 0) {
-            double rand = RNG.nextDouble();
-            double cuSum = 0;
-            for (Integer i : set) {
-                cuSum += 1.0 / s;
-                if (cuSum > rand) {
-                    randomOrder[(n - s)] = i.intValue();
-                    set.remove(i);
-                    break;
-                }
-            }
-
-            s = set.size();
-        }
-
-        return randomOrder;
-    }
 }

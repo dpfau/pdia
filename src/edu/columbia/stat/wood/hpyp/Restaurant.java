@@ -420,7 +420,7 @@ public class Restaurant extends TreeMap<Integer, Restaurant> implements Serializ
             randomType = new int[customers];
             randomTable = new int[customers];
 
-            int[] randomOrder = sampleWOReplacement(customers);
+            int[] randomOrder = Util.randPermute(customers);
 
             int ind = 0;
 
@@ -442,33 +442,6 @@ public class Restaurant extends TreeMap<Integer, Restaurant> implements Serializ
             typeAndTable[0] = randomType[index];
             typeAndTable[1] = randomTable[(index++)];
             return 0;
-        }
-
-        private int[] sampleWOReplacement(int n) {
-            HashSet<Integer> set = new HashSet(n);
-
-            for (int i = 0; i < n; i++) {
-                set.add((Integer)i);
-            }
-
-            int[] randomOrder = new int[n];
-            int s = set.size();
-            while (s > 0) {
-                double rand = Restaurant.RNG.nextDouble();
-                double cuSum = 0.0D;
-                for (Integer i : set) {
-                    cuSum += 1.0 / s;
-                    if (cuSum > rand) {
-                        randomOrder[(n - s)] = i.intValue();
-                        set.remove(i);
-                        break;
-                    }
-                }
-
-                s = set.size();
-            }
-
-            return randomOrder;
         }
     }
 }

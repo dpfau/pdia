@@ -1,5 +1,6 @@
 package edu.columbia.stat.wood.pdia;
 
+import edu.columbia.stat.wood.hpyp.Util;
 import java.io.BufferedInputStream;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -112,7 +113,7 @@ public class Main {
                 }
                 double[] score = new double[testLen];
                 for (int j = 0; j < 10; j++) {
-                    PDIA pdiaTest = copy(pdia);
+                    PDIA pdiaTest = Util.copy(pdia);
                     addArrays(score, pdiaTest.score(testSymbolLines, pdiaTest.endState()));
                 }
 
@@ -159,25 +160,5 @@ public class Main {
         for (int i = 0; i < base.length; i++) {
             base[i] += other[i];
         }
-    }
-
-    public static <E> E copy(E orig) {
-        Object obj = null;
-        try {
-            ByteArrayOutputStream bos = new ByteArrayOutputStream();
-            ObjectOutputStream out = new ObjectOutputStream(bos);
-            out.writeObject(orig);
-            out.flush();
-            out.close();
-
-            ObjectInputStream in = new ObjectInputStream(new ByteArrayInputStream(bos.toByteArray()));
-
-            obj = in.readObject();
-        } catch (IOException e) {
-            e.printStackTrace();
-        } catch (ClassNotFoundException cnfe) {
-            cnfe.printStackTrace();
-        }
-        return (E)obj;
     }
 }

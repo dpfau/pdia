@@ -79,11 +79,11 @@ public class BaseRestaurant extends Restaurant implements Serializable {
         double cuSum = 0.0;
         while (cuSum <= r) {
             ind++;
-            if (this.alphabetSize > -1) {
-                cuSum += 1.0D / alphabetSize;
-                continue;
+            if (alphabetSize > -1) {
+                cuSum += 1.0 / alphabetSize;
+            } else {
+                cuSum += Math.exp(-1.0 * ind * lambda) - Math.exp(-1.0D * (ind + 1) * lambda);
             }
-            cuSum += Math.exp(-1.0 * ind * lambda) - Math.exp(-1.0D * (ind + 1) * lambda);
         }
 
         return ind;
