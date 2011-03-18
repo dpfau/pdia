@@ -114,11 +114,11 @@ public class Main {
                 double[] score = new double[testLen];
                 for (int j = 0; j < 10; j++) {
                     PDIA pdiaTest = Util.copy(pdia);
-                    addArrays(score, pdiaTest.score(testSymbolLines, pdiaTest.endState()));
+                    addArrays(score, pdiaTest.score(testSymbolLines, 0));
                 }
 
                 for (int j = 0; j < score.length; j++) {
-                    score[j] /= 10.0D;
+                    score[j] /= 10.0;
                 }
 
                 oos.writeObject(pdia.beta);
