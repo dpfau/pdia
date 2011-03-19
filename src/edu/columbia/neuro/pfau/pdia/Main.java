@@ -21,11 +21,15 @@ public class Main {
                 data.add(foo);
             }
             PDIA pdia = new PDIA(data,Integer.parseInt(args[3]),Integer.parseInt(args[4]));
-            PDIA2 pdia2 = new PDIA2(data,Integer.parseInt(args[3]),Integer.parseInt(args[4]));
-            for (int i = 0; i < 100; i++) {
-                //pdia.sample();
-                pdia2.sample();
+            PDIA[] ps = new PDIA[1000];
+            for (int i = 0; i < 1000; i++) {
+                for (int j = 0; j < 10; j++) {
+                    pdia.sample();
+                }
+                System.out.println("Iteration = " + i + " : " + "Single Machine Prediction = " + PDIA.logLoss(new PDIA[]{pdia}, 10));
+                ps[i] = pdia.clone();
             }
+            System.out.println("Multi Machine Prediction = " + PDIA.logLoss(ps, 10));
 
         } catch (java.io.IOException e) {
             e.printStackTrace();

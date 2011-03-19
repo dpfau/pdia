@@ -43,14 +43,14 @@ public class PDIA implements Serializable, Iterable<PDIA>, Iterator<PDIA> {
         rnd.setSeed(1234); // for debugging only
         beta = 1.0;
         alphabet = new ArrayList<Object>();
-        top = new Restaurant<Table<Integer>,Integer>(1,0.1,new Geometric(0.001));
+        top = new Restaurant<Table<Integer>,Integer>(0.001,0.5,new Geometric(0.001));
 
         numSymbols = nsym;
         delta = new HashMap[nsym];
         restaurants = new ArrayList<Restaurant<Integer,Integer>>();
         for (int i = 0; i < nsym; i++) {
             delta[i] = new HashMap<Integer,Integer>();
-            restaurants.add(new Restaurant<Integer,Integer>(1,0.1,top));
+            restaurants.add(new Restaurant<Integer,Integer>(10,0.0,top));
         }
 
         trainingData = new int[0][];
@@ -72,7 +72,7 @@ public class PDIA implements Serializable, Iterable<PDIA>, Iterator<PDIA> {
         }
         beta = 1.0;
         alphabet = new ArrayList<Object>();
-        top = new Restaurant<Table<Integer>,Integer>(1,0.1,new Geometric(0.005));
+        top = new Restaurant<Table<Integer>,Integer>(0.001,0.5,new Geometric(0.001));
 
         trainingData = new int[nTrain][];
         testingData = new int[data.size()-nTrain][];
@@ -87,7 +87,7 @@ public class PDIA implements Serializable, Iterable<PDIA>, Iterator<PDIA> {
                         state = next(state,alphabet.indexOf(data.get(i).get(j)));
                     } else {
                         alphabet.add(data.get(i).get(j));
-                        restaurants.add(new Restaurant<Integer,Integer>(1,0.1,top));
+                        restaurants.add(new Restaurant<Integer,Integer>(10,0.01,top));
                         line.add(alphabet.size()-1);
                         state = next(state,alphabet.size()-1);
                     }
@@ -133,8 +133,10 @@ public class PDIA implements Serializable, Iterable<PDIA>, Iterator<PDIA> {
     public double dataLogLikelihood(HashMap<Integer,int[]> counts) {
         double logLike = 0.0;
         for (int[] arr : counts.values()) {
-            for (int i = 0; i < arr.length; i++) {
-                logLike += Gamma.logGamma(arr[i] + beta/numSymbols) - Gamma.logGamma(beta/numSymbols);
+            for (int ct : arr) {
+                if (ct != 0) {
+                    logLike += Gamma.logGamma(ct + beta/numSymbols) - Gamma.logGamma(beta/numSymbols);
+                }
             }
             logLike -= Gamma.logGamma(sum(arr) + beta) - Gamma.logGamma(beta);
         }
@@ -331,8 +333,8 @@ public class PDIA implements Serializable, Iterable<PDIA>, Iterator<PDIA> {
      */
     public void sample() {
         suffStat s = new suffStat();
-        for (int i = 0; i < numSymbols; i++) {
-            s = sampleEntries(restaurants.get(i),s);
+        for (Object r : permute(restaurants.toArray())) {
+            s = sampleEntries((Restaurant)r,s);
         }
         s = sampleEntries(top,s);
         HMCHyperparameters();
@@ -342,23 +344,21 @@ public class PDIA implements Serializable, Iterable<PDIA>, Iterator<PDIA> {
     }
 
     private suffStat sampleEntries(Restaurant r, suffStat s1) {
-        Set cust = r.cloneCustomers();
+        Object[] cust = permute(r.cloneCustomers().toArray());
         for (Object c : cust) {
             if (r.serving(c)) { // If the current entry hasn't been removed in the course of sampling other entries
-                for (int i = 0; i < 5; i++) {
-                    LinkedList<Table> ts = r.unseat(c);
-                    r.seat(c);
+                LinkedList<Table> ts = r.unseat(c);
+                r.seat(c);
+                fix();
+                suffStat s2 = new suffStat();
+                if (s2.score - s1.score > Math.log(rnd.nextDouble())) { // accept
+                    clean(s2.count);
+                    s1 = s2;
+                } else { // reject
+                    clean(s1.count);
+                    r.unseat(c);
+                    r.seat(c, ts);
                     fix();
-                    suffStat s2 = new suffStat();
-                    if (s2.score - s1.score > Math.log(rnd.nextDouble())) { // accept
-                        clean(s2.count);
-                        s1 = s2;
-                    } else { // reject
-                        clean(s1.count);
-                        r.unseat(c);
-                        r.seat(c, ts);
-                        fix();
-                    }
                 }
             }
         }
@@ -671,6 +671,22 @@ public class PDIA implements Serializable, Iterable<PDIA>, Iterator<PDIA> {
             e.printStackTrace();
         }
         return copy;
+    }
+
+    private Object[] permute(Object[] in) {
+        Object[] out = new Object[in.length];
+        int[] order = new int[in.length];
+        LinkedList<Integer> ind = new LinkedList<Integer>();
+        for (int i = 0; i < in.length; i++) {
+            ind.addLast(i);
+        }
+        for (int i = 0; i < in.length; i++) {
+            order[i] = ind.remove(rnd.nextInt(in.length - i));
+        }
+        for (int i = 0; i < out.length; i++) {
+            out[i] = in[order[i]];
+        }
+        return out;
     }
 }
 
