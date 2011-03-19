@@ -1,7 +1,6 @@
 package edu.columbia.stat.wood.pdia;
 
 import edu.columbia.stat.wood.hpyp.Util;
-import edu.columbia.stat.wood.hpyp.MutableDouble;
 import edu.columbia.stat.wood.hpyp.MutableInteger;
 import edu.columbia.stat.wood.hpyp.RestaurantFranchise;
 import java.io.Serializable;
