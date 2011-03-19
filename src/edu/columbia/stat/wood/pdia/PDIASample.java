@@ -14,23 +14,20 @@ import java.util.Iterator;
  * @author davidpfau
  */
 public class PDIASample implements Serializable, Iterable<PDIASample>, Iterator<PDIASample> {
-    public PDIASequence seq;
+    public PDIA pdia;
     public HashMap<Integer,int[]> counts;
     public double score;
     public static final long serialVersionUID = 1L;
 
-    @Override
     public Iterator<PDIASample> iterator() { return this; }
 
-    @Override
     public boolean hasNext() { return true; }
 
-    @Override
     public PDIASample next() {
-        seq.pdia.sample();
+        pdia.sample();
+        score = pdia.jointScore();
         return this;
     }
 
-    @Override
     public void remove() {}
 }

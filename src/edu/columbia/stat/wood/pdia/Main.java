@@ -125,7 +125,7 @@ public class Main {
                 oos.writeObject(pdia.dMatrix);
                 oos.writeObject(pdia.rf);
 
-                ps.print(pdia.beta.doubleVal() + ", " + pdia.states() + ", " + pdia.jointScore());
+                ps.print(pdia.beta + ", " + pdia.states() + ", " + pdia.jointScore());
                 ps.print(score[0]);
                 for (int j = 1; j < score.length; j++) {
                     ps.print(",");

@@ -16,7 +16,7 @@ public class PDIA implements Serializable {
     public HashMap<Pair, Integer> dMatrix;
     public HashMap<Integer, int[]> cMatrix;
     public int nSymbols;
-    public MutableDouble beta;
+    public double beta;
     public int[][] data;
     public static Random RNG = new Random(0L);
 
@@ -25,7 +25,7 @@ public class PDIA implements Serializable {
         rf = new RestaurantFranchise(1);
         this.nSymbols = nSymbols;
         dMatrix = new HashMap();
-        beta = new MutableDouble(10.0);
+        beta = 10.0;
         count();
     }
 
@@ -45,49 +45,23 @@ public class PDIA implements Serializable {
         }
     }
 
-    public int endState(int line) {
-        int state = 0;
-        for (int j = 0; j < data[line].length; j++) {
-            Pair p = new Pair(state, data[line][j]);
-            Integer nextState = dMatrix.get(p);
-
-            assert (nextState != null);
-
-            state = nextState;
-        }
-
-        return state;
-    }
-
-    public int endState() {
-        return endState(data.length - 1);
-    }
-
     public double jointScore() {
         return logLik() + rf.logLik();
     }
 
     public double logLik() {
         double logLik = 0;
-        double logGammaBeta = Gamma.logGamma(beta.doubleVal());
-        double betaOverN = beta.doubleVal() / nSymbols;
-        double logGammaBetaOverN = Gamma.logGamma(betaOverN);
+        double lgb = Gamma.logGamma(beta);
+        double bn = beta / nSymbols;
+        double lgbn = Gamma.logGamma(bn);
 
-        for (Integer state : cMatrix.keySet()) {
-            int[] counts = (int[]) cMatrix.get(state);
-
-            logLik += logGammaBeta;
-
-            int rowSum = 0;
-            for (int count : counts) {
+        for (int[] arr : cMatrix.values()) {
+            for (int count : arr) {
                 if (count != 0) {
-                    logLik += Gamma.logGamma(betaOverN + count);
-                    logLik -= logGammaBetaOverN;
-                    rowSum += count;
+                    logLik += Gamma.logGamma(count + bn) - lgbn;
                 }
             }
-
-            logLik -= Gamma.logGamma(beta.doubleVal() + rowSum);
+            logLik -= Gamma.logGamma(Util.sum(arr) + beta) - lgb;
         }
 
         return logLik;
@@ -101,17 +75,17 @@ public class PDIA implements Serializable {
 
     public void sampleBeta(double proposalSTD) {
         double logLik = logLik();
-        double currentBeta = beta.doubleVal();
+        double currentBeta = beta;
 
         double proposal = currentBeta + RNG.nextGaussian() * proposalSTD;
         if (proposal <= 0) {
             return;
         }
-        beta.set(proposal);
+        beta = proposal;
         double pLogLik = logLik();
         double r = Math.exp(pLogLik - logLik - proposal + currentBeta);
         if (RNG.nextDouble() >= r) {
-            beta.set(currentBeta);
+            beta = currentBeta;
         }
     }
 
@@ -173,44 +147,18 @@ public class PDIA implements Serializable {
         }
 
         double[] score = new double[totalLength];
-        int[] context = new int[1];
 
         int index = 0;
-        for (int i = 0; i < testSymbols.length; i++) {
-            int state;
-            if (i == 0) {
-                state = initialState;
-            } else {
-                state = 0;
+        for (Pair p : new PDIASequence(this, initialState, testSymbols)) {
+            int[] counts = cMatrix.get(p.state);
+            if (counts == null) {
+                counts = new int[nSymbols];
+                cMatrix.put(p.state,counts);
             }
-            for (int j = 0; j < testSymbols[i].length; j++) {
-                int[] counts = cMatrix.get(state);
-                if (counts == null) {
-                    counts = new int[nSymbols];
-                    cMatrix.put(state, counts);
-                }
 
-                int totalCount = 0;
-                for (int c : counts) {
-                    totalCount += c;
-                }
-
-                score[(index++)] = ((counts[testSymbols[i][j]] + beta.doubleVal() / nSymbols) / (totalCount + beta.doubleVal()));
-
-                counts[testSymbols[i][j]] += 1;
-
-                Pair p = new Pair(state, testSymbols[i][j]);
-                Integer nextState = dMatrix.get(p);
-
-                if (nextState == null) {
-                    context[0] = testSymbols[i][j];
-                    nextState = rf.generate(context);
-                    rf.seat(nextState.intValue(), context);
-                    dMatrix.put(p, nextState);
-                }
-
-                state = nextState;
-            }
+            int totalCount = Util.sum(counts);
+            score[(index++)] = ((counts[p.symbol] + beta / nSymbols) / (totalCount + beta));
+            counts[p.symbol]++;
         }
 
         return score;
