@@ -25,14 +25,14 @@ public class PDIA implements Serializable {
         this.nSymbols = nSymbols;
         dMatrix = new HashMap();
         beta = 10.0;
-        count();
+        count(data);
     }
 
     public int states() {
         return cMatrix.size();
     }
 
-    public void count() {
+    public void count(int[][] data) {
         cMatrix = new HashMap();
         for (Pair p : new PDIASequence(this,data)) {
             int[] counts = cMatrix.get(p.state);
@@ -109,7 +109,7 @@ public class PDIA implements Serializable {
         rf.seat(currentType, context);
         dMatrix.put(p, proposedType);
 
-        count();
+        count(data);
         double pLogLik = logLik();
 
         if (RNG.nextDouble() < Math.exp(pLogLik - logLik)) {
@@ -121,7 +121,7 @@ public class PDIA implements Serializable {
     }
 
     public void fixDMatrix() {
-        count();
+        count(data);
         HashSet<Pair> keysToDiscard = new HashSet();
 
         for (Pair p : dMatrix.keySet()) {
