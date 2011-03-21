@@ -32,21 +32,12 @@ public class PDIASequence implements Serializable, Iterator<Pair>, Iterable<Pair
         state = init;
     }
 
-    public PDIASequence(PDIA p, int[][]... data) {
-        rf = p.rf;
-        trans = p.dMatrix;
-        this.data = data;
-        line = 0;
-        pos  = 0;
-        state = 0;
-    }
-
     public Iterator<Pair> iterator() {
         return this;
     }
 
     public boolean hasNext() {
-        return line < data[0].length - 1 || (line == data[0].length - 1 && pos < data[0][line].length);
+        return data.length != 0 && (line < data[0].length - 1 || (line == data[0].length - 1 && pos < data[0][line].length));
     }
 
     public Pair next() {

@@ -16,28 +16,25 @@ public class PDIA implements Serializable {
     public HashMap<Integer, int[]> cMatrix;
     public int nSymbols;
     public double beta;
-    public int[][] data;
     public static Random RNG = new Random(0L);
 
-    public PDIA(int nSymbols, int[][] data) {
-        this.data = data;
+    public PDIA(int n) {
         rf = new RestaurantFranchise(1);
-        this.nSymbols = nSymbols;
+        nSymbols = n;
         dMatrix = new HashMap();
         beta = 10.0;
-        count(data);
     }
 
     public PDIASequence run(int[][]... data) {
-        return new PDIASequence(this,data);
+        return new PDIASequence(this,0,data);
     }
 
     public PDIASequence run(int init, int[][]... data) {
         return new PDIASequence(this,init,data);
     }
 
-    public PDIASample sample(int[][]... data) {
-        return new PDIASample(this,data);
+    public static PDIASample sample(int[] nSymbols, int[][]... data) {
+        return new PDIASample(nSymbols[0],data);
     }
 
     public int states() {
@@ -78,12 +75,6 @@ public class PDIA implements Serializable {
         return logLik;
     }
 
-    public void sample() {
-        sampleD();
-        rf.sample();
-        sampleBeta(1.0);
-    }
-
     public void sampleBeta(double proposalSTD) {
         double logLik = logLik();
         double currentBeta = beta;
@@ -100,16 +91,16 @@ public class PDIA implements Serializable {
         }
     }
 
-    public void sampleD() {
+    public void sampleD(int[][]... data) {
         for (Pair p : randomPairArray()) {
             if (dMatrix.get(p) != null) {
-                sampleD(p);
+                sampleD(p,data);
             }
             fixDMatrix();
         }
     }
 
-    public void sampleD(Pair p) {
+    public void sampleD(Pair p, int[][]... data) {
         int[] context = new int[]{p.symbol};
         double logLik = logLik();
         Integer currentType = dMatrix.get(p);
@@ -117,43 +108,22 @@ public class PDIA implements Serializable {
 
         rf.unseat(currentType, context);
         Integer proposedType = rf.generate(context);
-        rf.seat(currentType, context);
         dMatrix.put(p, proposedType);
 
+        Object oldCounts = cMatrix.clone();
         count(data);
         double pLogLik = logLik();
 
-        if (RNG.nextDouble() < Math.exp(pLogLik - logLik)) {
-            rf.unseat(currentType, context);
+        if (Math.log(RNG.nextDouble()) < pLogLik - logLik) { // accept
             rf.seat(proposedType, context);
-        } else {
-            dMatrix.put(p, currentType);
-        }
-    }
-
-    public void sampleD2(Pair p) {
-        int[] context = new int[]{p.symbol};
-        double logLik = logLik();
-        Integer currentType = dMatrix.get(p);
-        assert (currentType != null);
-
-        rf.unseat(currentType, context);
-        Integer proposedType = rf.generate(context);
-        rf.seat(proposedType, context);
-        dMatrix.put(p, proposedType);
-
-        count(data);
-        double pLogLik = logLik();
-
-        if (RNG.nextDouble() >= Math.exp(pLogLik - logLik)) {
-            rf.unseat(proposedType,context);
+        } else { // reject
+            cMatrix = (HashMap<Integer,int[]>) oldCounts;
             rf.seat(currentType, context);
             dMatrix.put(p, currentType);
         }
     }
 
     public void fixDMatrix() {
-        count(data); // could speed things by pre-processing this
         HashSet<Pair> keysToDiscard = new HashSet();
 
         for (Pair p : dMatrix.keySet()) {
@@ -171,16 +141,16 @@ public class PDIA implements Serializable {
         }
     }
 
-    public double[] score(int[][] testSymbols, int initialState) {
+    public double[] score(int init, int[][] data) {
         int totalLength = 0;
-        for (int i = 0; i < testSymbols.length; i++) {
-            totalLength += testSymbols[i].length;
+        for (int i = 0; i < data.length; i++) {
+            totalLength += data[i].length;
         }
 
         double[] score = new double[totalLength];
 
         int index = 0;
-        for (Pair p : new PDIASequence(this, initialState, testSymbols)) {
+        for (Pair p : run(init,data)) {
             int[] counts = cMatrix.get(p.state);
             if (counts == null) {
                 counts = new int[nSymbols];

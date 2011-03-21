@@ -95,45 +95,46 @@ public class Main {
 
         }
 
-        PDIA pdia = new PDIA(27, symbolLines);
         try {
             oos = new ObjectOutputStream(new GZIPOutputStream(new FileOutputStream(objs)));
             ps = new PrintStream(new FileOutputStream(output));
 
-            for (int s = 0; s < samples; s++) {
-                for (int j = 0; j < 10; j++) {
-                    pdia.sample();
-                }
+            int s = 1;
+            for (PDIA pdia : PDIA.sample(new int[]{27},symbolLines)) {
+                if (s % 10 == 0) {
 
-                int testLen = 0;
-                for (int i = 0; i < testSymbolLines.length; i++) {
-                    if (testSymbolLines[i] != null) {
-                        testLen += testSymbolLines[i].length;
+                    int testLen = 0;
+                    for (int i = 0; i < testSymbolLines.length; i++) {
+                        if (testSymbolLines[i] != null) {
+                            testLen += testSymbolLines[i].length;
+                        }
                     }
-                }
-                double[] score = new double[testLen];
-                for (int j = 0; j < 10; j++) {
-                    PDIA pdiaTest = Util.copy(pdia);
-                    addArrays(score, pdiaTest.score(testSymbolLines, 0));
-                }
+                    double[] score = new double[testLen];
+                    for (int j = 0; j < 10; j++) {
+                        PDIA pdiaTest = Util.copy(pdia);
+                        addArrays(score, pdiaTest.score(0, testSymbolLines));
+                    }
 
-                for (int j = 0; j < score.length; j++) {
-                    score[j] /= 10.0;
+                    for (int j = 0; j < score.length; j++) {
+                        score[j] /= 10.0;
+                    }
+
+                    oos.writeObject(pdia.beta);
+                    oos.writeObject(pdia.dMatrix);
+                    oos.writeObject(pdia.rf);
+
+                    ps.print(pdia.beta + ", " + pdia.states() + ", " + pdia.jointScore());
+                    ps.print(score[0]);
+                    for (int j = 1; j < score.length; j++) {
+                        ps.print(",");
+                        ps.print(score[j]);
+                    }
+                    ps.println();
+
+                    System.out.println("Iteration = " + s / 10 + " : SingleMachinePrediction = " + summarizeScore(score));
                 }
-
-                oos.writeObject(pdia.beta);
-                oos.writeObject(pdia.dMatrix);
-                oos.writeObject(pdia.rf);
-
-                ps.print(pdia.beta + ", " + pdia.states() + ", " + pdia.jointScore());
-                ps.print(score[0]);
-                for (int j = 1; j < score.length; j++) {
-                    ps.print(",");
-                    ps.print(score[j]);
-                }
-                ps.println();
-
-                System.out.println("Iteration = " + s + " : SingleMachinePrediction = " + summarizeScore(score));
+                s++;
+                if (s == 10*samples) break;
             }
         } finally {
             if (oos != null) {
