@@ -50,22 +50,22 @@ public class PDIASequence implements Serializable, Iterator<Pair>, Iterable<Pair
     }
 
     public Pair next() {
-        Pair nxt = new Pair(state,data[0][line][pos]);
+        Pair p = new Pair(state,data[0][line][pos]);
         if (pos == data[0][line].length - 1) {
             pos = 0;
             line ++;
             state = 0;
         } else {
             pos ++;
-            state = trans.get(nxt);
+            state = trans.get(p);
             if (state == null) {
-                int[] context = {nxt.symbol};
+                int[] context = {p.symbol};
                 state = rf.generate(context);
                 rf.seat(state, context);
-                trans.put(nxt,state);
+                trans.put(p,state);
             }
         }
-        return nxt;
+        return p;
     }
 
     public void remove() {}

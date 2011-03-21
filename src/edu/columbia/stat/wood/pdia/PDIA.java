@@ -101,8 +101,7 @@ public class PDIA implements Serializable {
     }
 
     public void sampleD() {
-        Pair[] randomSSPArray = randomPairArray();
-        for (Pair p : randomSSPArray) {
+        for (Pair p : randomPairArray()) {
             if (dMatrix.get(p) != null) {
                 sampleD(p);
             }
@@ -154,7 +153,7 @@ public class PDIA implements Serializable {
     }
 
     public void fixDMatrix() {
-        count(data);
+        count(data); // could speed things by pre-processing this
         HashSet<Pair> keysToDiscard = new HashSet();
 
         for (Pair p : dMatrix.keySet()) {
