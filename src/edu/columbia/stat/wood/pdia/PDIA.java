@@ -1,6 +1,5 @@
 package edu.columbia.stat.wood.pdia;
 
-import edu.columbia.stat.wood.hpyp.Util;
 import edu.columbia.stat.wood.hpyp.MutableInteger;
 import edu.columbia.stat.wood.hpyp.RestaurantFranchise;
 import java.io.Serializable;
@@ -16,7 +15,9 @@ public class PDIA implements Serializable {
     public HashMap<Integer, int[]> cMatrix;
     public int nSymbols;
     public double beta;
+    public double logLike;
     public static Random RNG = new Random(0L);
+    public static final long serialVersionUID = 1L;
 
     public PDIA(int n) {
         rf = new RestaurantFranchise(1);
@@ -37,6 +38,23 @@ public class PDIA implements Serializable {
         return new PDIASample(nSymbols[0],data);
     }
 
+    public static PDIA[] sample(int burnIn, int interval, int samples, int[] nSymbols, int[][]... data) {
+        PDIA[] ps = new PDIA[samples];
+        int i = 0;
+        for (PDIA p : PDIA.sample(nSymbols,data)) {
+            if (i >= burnIn && (i-burnIn) % interval == 0) {
+                ps[(i-burnIn)/interval] = Util.copy(p);
+            }
+            i++;
+            if (i == burnIn + interval*samples) break;
+        }
+        return ps;
+    }
+
+    public static double logLossPerToken(PDIA[] ps, int[][]... data) {
+        return 0.0; 
+    }
+
     public int states() {
         return cMatrix.size();
     }
@@ -51,10 +69,11 @@ public class PDIA implements Serializable {
             }
             counts[p.symbol] ++;
         }
+        logLike = logLik();
     }
 
     public double jointScore() {
-        return logLik() + rf.logLik();
+        return logLike + rf.logLik();
     }
 
     public double logLik() {
@@ -76,7 +95,6 @@ public class PDIA implements Serializable {
     }
 
     public void sampleBeta(double proposalSTD) {
-        double logLik = logLik();
         double currentBeta = beta;
 
         double proposal = currentBeta + RNG.nextGaussian() * proposalSTD;
@@ -85,9 +103,11 @@ public class PDIA implements Serializable {
         }
         beta = proposal;
         double pLogLik = logLik();
-        double r = Math.exp(pLogLik - logLik - proposal + currentBeta);
+        double r = Math.exp(pLogLik - logLike - proposal + currentBeta);
         if (RNG.nextDouble() >= r) {
             beta = currentBeta;
+        } else {
+            logLike = pLogLik;
         }
     }
 
@@ -102,7 +122,7 @@ public class PDIA implements Serializable {
 
     public void sampleD(Pair p, int[][]... data) {
         int[] context = new int[]{p.symbol};
-        double logLik = logLik();
+        double cLogLik = logLike;
         Integer currentType = dMatrix.get(p);
         assert (currentType != null);
 
@@ -114,10 +134,11 @@ public class PDIA implements Serializable {
         count(data);
         double pLogLik = logLik();
 
-        if (Math.log(RNG.nextDouble()) < pLogLik - logLik) { // accept
+        if (Math.log(RNG.nextDouble()) < pLogLik - cLogLik) { // accept
             rf.seat(proposedType, context);
         } else { // reject
             cMatrix = (HashMap<Integer,int[]>) oldCounts;
+            logLike = cLogLik;
             rf.seat(currentType, context);
             dMatrix.put(p, currentType);
         }
@@ -141,10 +162,10 @@ public class PDIA implements Serializable {
         }
     }
 
-    public double[] score(int init, int[][] data) {
+    public double[] score(int init, int[][]... data) {
         int totalLength = 0;
-        for (int i = 0; i < data.length; i++) {
-            totalLength += data[i].length;
+        for (int i = 0; i < data[0].length; i++) {
+            totalLength += data[0][i].length;
         }
 
         double[] score = new double[totalLength];

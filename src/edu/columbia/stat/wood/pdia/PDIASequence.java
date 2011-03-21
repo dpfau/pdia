@@ -5,9 +5,7 @@
 
 package edu.columbia.stat.wood.pdia;
 
-import edu.columbia.stat.wood.hpyp.RestaurantFranchise;
 import java.io.Serializable;
-import java.util.HashMap;
 import java.util.Iterator;
 
 /**
@@ -15,8 +13,7 @@ import java.util.Iterator;
  * @author davidpfau
  */
 public class PDIASequence implements Serializable, Iterator<Pair>, Iterable<Pair> {
-    public RestaurantFranchise rf;
-    public HashMap<Pair,Integer> trans;
+    public PDIA pdia;
     public int[][][] data; // First index is type of data, second is line, third is position in line
     private int line;
     private int pos;
@@ -24,8 +21,7 @@ public class PDIASequence implements Serializable, Iterator<Pair>, Iterable<Pair
     private static final long serialVersionUID = 1L;
 
     public PDIASequence(PDIA p, int init, int[][]... data) {
-        rf = p.rf;
-        trans = p.dMatrix;
+        pdia = p;
         this.data = data;
         line = 0;
         pos  = 0;
@@ -48,12 +44,12 @@ public class PDIASequence implements Serializable, Iterator<Pair>, Iterable<Pair
             state = 0;
         } else {
             pos ++;
-            state = trans.get(p);
+            state = pdia.dMatrix.get(p);
             if (state == null) {
                 int[] context = {p.symbol};
-                state = rf.generate(context);
-                rf.seat(state, context);
-                trans.put(p,state);
+                state = pdia.rf.generate(context);
+                pdia.rf.seat(state, context);
+                pdia.dMatrix.put(p,state);
             }
         }
         return p;

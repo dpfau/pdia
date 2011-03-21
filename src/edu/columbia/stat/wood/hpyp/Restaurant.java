@@ -1,5 +1,6 @@
 package edu.columbia.stat.wood.hpyp;
 
+import edu.columbia.stat.wood.pdia.Util;
 import java.io.Serializable;
 import java.util.HashSet;
 import java.util.Random;

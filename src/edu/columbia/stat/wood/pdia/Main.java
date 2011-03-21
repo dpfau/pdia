@@ -1,6 +1,5 @@
 package edu.columbia.stat.wood.pdia;
 
-import edu.columbia.stat.wood.hpyp.Util;
 import java.io.BufferedInputStream;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -112,7 +111,7 @@ public class Main {
                     double[] score = new double[testLen];
                     for (int j = 0; j < 10; j++) {
                         PDIA pdiaTest = Util.copy(pdia);
-                        addArrays(score, pdiaTest.score(0, testSymbolLines));
+                        Util.addArrays(score, pdiaTest.score(0, testSymbolLines));
                     }
 
                     for (int j = 0; j < score.length; j++) {
@@ -147,19 +146,14 @@ public class Main {
     }
 
     public static double summarizeScore(double[] score) {
-        double logLik = 0.0D;
+        double logLik = 0.0;
         for (double p : score) {
-            logLik -= Math.log(p) / Math.log(2.0D);
+            logLik -= Math.log(p) / Math.log(2.0);
         }
         logLik /= score.length;
 
         return logLik;
     }
 
-    public static void addArrays(double[] base, double[] other) {
-        assert (base.length == other.length);
-        for (int i = 0; i < base.length; i++) {
-            base[i] += other[i];
-        }
-    }
+
 }
