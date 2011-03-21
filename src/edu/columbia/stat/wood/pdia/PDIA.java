@@ -28,13 +28,25 @@ public class PDIA implements Serializable {
         count(data);
     }
 
+    public PDIASequence run(int[][]... data) {
+        return new PDIASequence(this,data);
+    }
+
+    public PDIASequence run(int init, int[][]... data) {
+        return new PDIASequence(this,init,data);
+    }
+
+    public PDIASample sample(int[][]... data) {
+        return new PDIASample(this,data);
+    }
+
     public int states() {
         return cMatrix.size();
     }
 
-    public void count(int[][] data) {
+    public void count(int[][]... data) {
         cMatrix = new HashMap();
-        for (Pair p : new PDIASequence(this,data)) {
+        for (Pair p : run(data)) {
             int[] counts = cMatrix.get(p.state);
             if (counts == null) {
                 counts = new int[nSymbols];
@@ -116,6 +128,27 @@ public class PDIA implements Serializable {
             rf.unseat(currentType, context);
             rf.seat(proposedType, context);
         } else {
+            dMatrix.put(p, currentType);
+        }
+    }
+
+    public void sampleD2(Pair p) {
+        int[] context = new int[]{p.symbol};
+        double logLik = logLik();
+        Integer currentType = dMatrix.get(p);
+        assert (currentType != null);
+
+        rf.unseat(currentType, context);
+        Integer proposedType = rf.generate(context);
+        rf.seat(proposedType, context);
+        dMatrix.put(p, proposedType);
+
+        count(data);
+        double pLogLik = logLik();
+
+        if (RNG.nextDouble() >= Math.exp(pLogLik - logLik)) {
+            rf.unseat(proposedType,context);
+            rf.seat(currentType, context);
             dMatrix.put(p, currentType);
         }
     }

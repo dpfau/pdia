@@ -5,29 +5,39 @@
 
 package edu.columbia.stat.wood.pdia;
 
-import java.io.Serializable;
-import java.util.HashMap;
 import java.util.Iterator;
 
 /**
  *
  * @author davidpfau
  */
-public class PDIASample implements Serializable, Iterable<PDIASample>, Iterator<PDIASample> {
+public class PDIASample implements Iterable<PDIA>, Iterator<PDIA> {
     public PDIA pdia;
-    public HashMap<Integer,int[]> counts;
+    public int[][][] data;
     public double score;
-    public static final long serialVersionUID = 1L;
 
-    public Iterator<PDIASample> iterator() { return this; }
+    public Iterator<PDIA> iterator() { return this; }
+
+    public PDIASample(PDIA p, int[][]... data) {
+        pdia = p;
+        this.data = data;
+        pdia.count(data);
+        score = pdia.logLik();
+    }
 
     public boolean hasNext() { return true; }
 
-    public PDIASample next() {
+    public PDIA next() {
         pdia.sample();
         score = pdia.jointScore();
-        return this;
+        return pdia;
     }
 
     public void remove() {}
+
+    public void sample() {
+        pdia.sampleD();
+        pdia.rf.sample();
+        pdia.sampleBeta(1.0);
+    }
 }
