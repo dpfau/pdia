@@ -26,18 +26,46 @@ public class PDIA implements Serializable {
         beta = 10.0;
     }
 
+    /**
+     * Given one or more arrays of data, returns an iterator over all
+     * state/symbol pairs in that sequence
+     * @param data An arbitrary number of arrays of lines of data
+     * @return An iterator over state/symbol pairs
+     */
     public PDIASequence run(int[][]... data) {
         return new PDIASequence(this,0,data);
     }
 
+    /**
+     * Same as run(int[][]... data), but with a specific initial state
+     * @param init Initial state for the first line of the data
+     * @param data
+     * @return
+     */
     public PDIASequence run(int init, int[][]... data) {
         return new PDIASequence(this,init,data);
     }
 
+    /**
+     * Given data, returns an iterator over PDIA that forms an MCMC sampler
+     * @param nSymbols The size of the alphabet for each data type
+     * @param data
+     * @return The iterator over PDIA
+     */
     public static PDIASample sample(int[] nSymbols, int[][]... data) {
+        assert nSymbols.length == data.length : "Number of data types is inconsistent!";
         return new PDIASample(nSymbols[0],data);
     }
 
+    /**
+     * Runs an MCMC sampler a specified number of times, saving samples along the way
+     * @param burnIn Number of burn in samples
+     * @param interval Number of samples between saves
+     * @param samples Number of saved samples
+     * @param nSymbols The size of the alphabet for each data type
+     * @param data
+     * @return An array of posterior samples from the Markov chain
+     */
     public static PDIA[] sample(int burnIn, int interval, int samples, int[] nSymbols, int[][]... data) {
         PDIA[] ps = new PDIA[samples];
         int i = 0;
@@ -55,10 +83,35 @@ public class PDIA implements Serializable {
         return ps;
     }
 
-    public int states() {
-        return cMatrix.size();
+    /**
+     * @param return The number of states the data visits.
+     * Depends on the most recent int[][] data on which count(data) was called.
+     */
+    public int states() { return cMatrix.size(); }
+
+    /**
+     * @return A deterministic map from state/symbol pairs to next states.
+     * Returns null if that state/symbol pair is not in the transition matrix.
+     */
+    public HashMap<Pair,Integer> transition() { return dMatrix; }
+
+    /**
+     * Given a state and symbol observed in that state, returns the next state,
+     * or null if that state is not in the transition matrix
+     * @param state
+     * @param symbol
+     * @return
+     */
+    public Integer transition(int state, int symbol) {
+        return dMatrix.get(new Pair(state,symbol));
     }
 
+    /**
+     * Runs over all the data, filling the field cMatrix.
+     * cMatrix - Hash map from states to array of symbols, giving the number
+     * of times that symbol is emitted from that state.
+     * @param data
+     */
     public void count(int[][]... data) {
         cMatrix = new HashMap();
         for (Pair p : run(data)) {
@@ -72,10 +125,16 @@ public class PDIA implements Serializable {
         logLike = logLik();
     }
 
+    /**
+     * @return The joint log likelihood of the model and the data
+     */
     public double jointScore() {
         return logLike + rf.logLik();
     }
 
+    /**
+     * @return The log likelihood of the data (for which cMatrix is a sufficient statistic)
+     */
     public double logLik() {
         double logLik = 0;
         double lgb = Gamma.logGamma(beta);
@@ -94,6 +153,10 @@ public class PDIA implements Serializable {
         return logLik;
     }
 
+    /**
+     * Samples the hyperparameter over the emission distribution
+     * @param proposalSTD
+     */
     public void sampleBeta(double proposalSTD) {
         double currentBeta = beta;
 
@@ -111,6 +174,10 @@ public class PDIA implements Serializable {
         }
     }
 
+    /**
+     * One sweep of sampling over the transition matrix.
+     * @param data
+     */
     public void sampleD(int[][]... data) {
         for (Pair p : randomPairArray()) {
             if (dMatrix.get(p) != null) {
@@ -120,6 +187,11 @@ public class PDIA implements Serializable {
         }
     }
 
+    /**
+     * Samples a single entry of the transition matrix
+     * @param p The state/symbol pair to be sampled
+     * @param data
+     */
     public void sampleD(Pair p, int[][]... data) {
         int[] context = new int[]{p.symbol};
         double cLogLik = logLike;
@@ -144,6 +216,9 @@ public class PDIA implements Serializable {
         }
     }
 
+    /**
+     * After sampling, clears out state/symbol pairs for which there are no observed data
+     */
     public void fixDMatrix() {
         HashSet<Pair> keysToDiscard = new HashSet();
 
@@ -162,6 +237,13 @@ public class PDIA implements Serializable {
         }
     }
 
+    /**
+     * Returns an array that gives the predictive probability of each data point,
+     * given the training data and the previous data in the same array
+     * @param init Initial state of the PDIA
+     * @param data
+     * @return The predictive probability of each element of data
+     */
     public double[] score(int init, int[][]... data) {
         int totalLength = 0;
         for (int i = 0; i < data[0].length; i++) {
@@ -186,6 +268,15 @@ public class PDIA implements Serializable {
         return score;
     }
 
+    /**
+     * Same as above, but with predictions averaged over multiple PDIAs
+     * We do things in this order because we need to average single-datum
+     * probabilities before taking the sum of log probabilities.
+     * @param ps Array of PDIA posterior samples
+     * @param init
+     * @param data
+     * @return
+     */
     public static double[] score(PDIA[] ps, int init, int[][]... data) {
         int n = 10;
         double[] score = new double[Util.totalLen(data[0])];
@@ -202,6 +293,9 @@ public class PDIA implements Serializable {
         return score;
     }
 
+    /**
+     * Checks for consistency between the fields rf and dMatrix
+     */
     public void check() {
         HashMap dCustomerCounts = new HashMap();
         int[] context = new int[1];
