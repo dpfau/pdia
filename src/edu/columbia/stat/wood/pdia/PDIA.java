@@ -42,17 +42,17 @@ public class PDIA implements Serializable {
         PDIA[] ps = new PDIA[samples];
         int i = 0;
         for (PDIA p : PDIA.sample(nSymbols,data)) {
+            if (i < burnIn) {
+                System.out.println("Burn In Sample " + i + " of " + burnIn);
+            }
             if (i >= burnIn && (i-burnIn) % interval == 0) {
                 ps[(i-burnIn)/interval] = Util.copy(p);
+                System.out.println("Wrote sample " + Integer.toString((i-burnIn)/interval) + " of " + samples);
             }
             i++;
             if (i == burnIn + interval*samples) break;
         }
         return ps;
-    }
-
-    public static double logLossPerToken(PDIA[] ps, int[][]... data) {
-        return 0.0; 
     }
 
     public int states() {
@@ -183,6 +183,22 @@ public class PDIA implements Serializable {
             counts[p.symbol]++;
         }
 
+        return score;
+    }
+
+    public static double[] score(PDIA[] ps, int init, int[][]... data) {
+        int n = 10;
+        double[] score = new double[Util.totalLen(data[0])];
+        for (PDIA pdia : ps) {
+            for (int i = 0; i < n; i++) {
+                PDIA copy = Util.<PDIA>copy(pdia);
+                Util.addArrays(score, copy.score(init, data));
+            }
+        }
+
+        for (int i = 0; i < score.length; i++) {
+            score[i] /= (n*ps.length);
+        }
         return score;
     }
 
