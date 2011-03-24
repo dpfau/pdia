@@ -21,11 +21,9 @@ public class Main {
         File train = new File("/Users/davidpfau/Documents/Wood Group/aiw/aiw.train");
         File test = new File("/Users/davidpfau/Documents/Wood Group/aiw/aiw.test");
         File objs = new File("/Users/davidpfau/Documents/Wood Group/PDIA/results/objectsFromPDIA_hpy.txt.gz");
-        File output = new File("/Users/davidpfau/Documents/Wood Group/PDIA/results/predictiveValuesAliceInWonderland_hpy.txt");
 
         BufferedInputStream bis = null;
         ObjectOutputStream oos = null;
-        PrintStream ps = null;
         int[] symbols;
         int[][] symbolLines;
         HashMap<Integer, Integer> alphabet = new HashMap<Integer, Integer>(28);
@@ -94,7 +92,6 @@ public class Main {
 
         try {
             oos = new ObjectOutputStream(new GZIPOutputStream(new FileOutputStream(objs)));
-            ps = new PrintStream(new FileOutputStream(output));
 
             int s = 1;
 
@@ -106,23 +103,12 @@ public class Main {
                 oos.writeObject(pdia.dMatrix);
                 oos.writeObject(pdia.rf);
 
-                ps.print(pdia.beta + ", " + pdia.states() + ", " + pdia.jointScore());
-                ps.print(score[0]);
-                for (int j = 1; j < score.length; j++) {
-                    ps.print(",");
-                    ps.print(score[j]);
-                }
-                ps.println();
-
                 System.out.println("Iteration = " + s / 10 + " : SingleMachinePrediction = " + Util.scoreToLogLoss(score));
             }
             System.out.println("Average Prediction = " + Util.scoreToLogLoss(PDIA.score(pdias, 0, testSymbolLines)));
         } finally {
             if (oos != null) {
                 oos.close();
-            }
-            if (ps != null) {
-                ps.close();
             }
         }
     }
