@@ -22,7 +22,7 @@ public class PDIA implements Serializable {
     public PDIA(int n) {
         rf = new RestaurantFranchise(1);
         nSymbols = n;
-        dMatrix = new HashMap();
+        dMatrix = new HashMap<Pair, Integer>();
         beta = 10.0;
     }
 
@@ -113,7 +113,7 @@ public class PDIA implements Serializable {
      * @param data
      */
     public void count(int[][]... data) {
-        cMatrix = new HashMap();
+        cMatrix = new HashMap<Integer, int[]>();
         for (Pair p : run(data)) {
             int[] counts = cMatrix.get(p.state);
             if (counts == null) {
@@ -202,14 +202,14 @@ public class PDIA implements Serializable {
         Integer proposedType = rf.generate(context);
         dMatrix.put(p, proposedType);
 
-        Object oldCounts = cMatrix.clone();
+        HashMap<Integer, int[]> oldCounts = (HashMap<Integer, int[]>)cMatrix.clone();
         count(data);
         double pLogLik = logLik();
 
         if (Math.log(RNG.nextDouble()) < pLogLik - cLogLik) { // accept
             rf.seat(proposedType, context);
         } else { // reject
-            cMatrix = (HashMap<Integer,int[]>) oldCounts;
+            cMatrix = oldCounts;
             logLike = cLogLik;
             rf.seat(currentType, context);
             dMatrix.put(p, currentType);
@@ -220,7 +220,7 @@ public class PDIA implements Serializable {
      * After sampling, clears out state/symbol pairs for which there are no observed data
      */
     public void fixDMatrix() {
-        HashSet<Pair> keysToDiscard = new HashSet();
+        HashSet<Pair> keysToDiscard = new HashSet<Pair>();
 
         for (Pair p : dMatrix.keySet()) {
             int[] counts = cMatrix.get(p.state);
@@ -297,20 +297,20 @@ public class PDIA implements Serializable {
      * Checks for consistency between the fields rf and dMatrix
      */
     public void check() {
-        HashMap dCustomerCounts = new HashMap();
+    	HashMap<Integer, HashMap<Integer, MutableInteger>> dCustomerCounts = new HashMap<Integer, HashMap<Integer, MutableInteger>>();
         int[] context = new int[1];
 
         for (Pair p : dMatrix.keySet()) {
             context[0] = p.symbol;
 
-            HashMap typeCountMap = (HashMap) dCustomerCounts.get(p.symbol);
+            HashMap<Integer, MutableInteger> typeCountMap = dCustomerCounts.get(p.symbol);
             if (typeCountMap == null) {
-                typeCountMap = new HashMap();
+                typeCountMap = new HashMap<Integer, MutableInteger>();
                 dCustomerCounts.put(p.symbol, typeCountMap);
             }
 
             Integer tKey = dMatrix.get(p);
-            MutableInteger count = (MutableInteger) typeCountMap.get(tKey);
+            MutableInteger count = typeCountMap.get(tKey);
 
             if (count == null) {
                 count = new MutableInteger(0);
@@ -322,10 +322,10 @@ public class PDIA implements Serializable {
 
         int[] tCounts = new int[2];
         for (int i = 0; i < nSymbols; i++) {
-            HashMap<Integer, Integer> hm = (HashMap<Integer,Integer>) dCustomerCounts.get(i);
+            HashMap<Integer, MutableInteger> hm = dCustomerCounts.get(i);
             for (Integer type : hm.keySet()) {
                 rf.get(context).getCounts(type.intValue(), tCounts);
-                assert (tCounts[0] == ((MutableInteger) ((HashMap) hm).get(type)).intVal());
+                assert (tCounts[0] == hm.get(type).intVal());
             }
         }
     }

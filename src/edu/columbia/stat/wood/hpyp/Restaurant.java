@@ -22,7 +22,7 @@ public class Restaurant extends TreeMap<Integer, Restaurant> implements Serializ
         this.parent = parent;
         this.discount = discount;
         this.concentration = concentration;
-        tableMap = new TreeMap();
+        tableMap = new TreeMap<Integer, int[]>();
         customers = 0;
         tables = 0;
         restCount += 1;
@@ -401,7 +401,7 @@ public class Restaurant extends TreeMap<Integer, Restaurant> implements Serializ
 
     public void printTableMap() {
         for (Integer i : tableMap.keySet()) {
-            int[] tsa = (int[]) tableMap.get(i);
+            int[] tsa = tableMap.get(i);
             System.out.print(i + " : [" + tsa[0]);
             for (int j = 1; j < tsa.length; j++) {
                 System.out.print(", " + tsa[j]);
@@ -426,7 +426,7 @@ public class Restaurant extends TreeMap<Integer, Restaurant> implements Serializ
             int ind = 0;
 
             for (Integer type : tblMap.keySet()) {
-                int[] tsa = (int[]) tblMap.get(type);
+                int[] tsa = tblMap.get(type);
                 for (int table = 0; table < tsa.length; table++) {
                     for (int customer = 0; customer < tsa[table]; customer++) {
                         randomType[randomOrder[ind]] = type;

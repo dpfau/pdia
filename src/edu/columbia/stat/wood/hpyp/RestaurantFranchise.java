@@ -68,7 +68,7 @@ public class RestaurantFranchise implements Serializable {
     }
 
     public HashMap<Integer, MutableDouble> predictiveProbabilityExisingTypes(int[] context) {
-        HashMap returnMap = new HashMap(root.tableMap.size() + 1);
+    	HashMap<Integer, MutableDouble> returnMap = new HashMap<Integer, MutableDouble>(root.tableMap.size() + 1);
         Restaurant r = getDontAdd(context);
         double cuSum = 0.0;
 
@@ -105,10 +105,10 @@ public class RestaurantFranchise implements Serializable {
             sampleSeating(child);
         }
 
-        HashSet<Integer> toRemove = new HashSet();
+        HashSet<Integer> toRemove = new HashSet<Integer>();
 
         for (Integer key : r.keySet()) {
-            Restaurant c = (Restaurant) r.get(key);
+            Restaurant c = r.get(key);
             if ((c.isEmpty()) && (c.tables() == 0)) {
                 toRemove.add(key);
             }
