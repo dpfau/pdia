@@ -1,16 +1,12 @@
 package edu.columbia.stat.wood.pdia;
 
 import java.io.BufferedInputStream;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
-import java.io.PrintStream;
 import java.util.HashMap;
 import java.util.zip.GZIPOutputStream;
 
@@ -18,9 +14,9 @@ public class Main {
 
     public static void main(String[] args)
             throws FileNotFoundException, IOException, ClassNotFoundException {
-        File train = new File("/Users/davidpfau/Documents/Wood Group/aiw/aiw.train");
-        File test = new File("/Users/davidpfau/Documents/Wood Group/aiw/aiw.test");
-        File objs = new File("/Users/davidpfau/Documents/Wood Group/PDIA/results/objectsFromPDIA_hpy.txt.gz");
+        File train = new File(args[0] + "data/aiw.train");
+        File test = new File(args[0] + "data/aiw.test");
+        File objs = new File(args[0] + "results/objectsFromPDIA_hpy.txt.gz");
 
         BufferedInputStream bis = null;
         ObjectOutputStream oos = null;
