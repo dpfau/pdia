@@ -47,6 +47,10 @@ public class RestaurantFranchise implements Serializable {
         return depth;
     }
 
+    public int alphabetSize() {
+        return alphabetSize;
+    }
+
     public double seat(int type, int[] context) {
         Restaurant r = get(context);
         double p = r.predictiveProbability(type);
