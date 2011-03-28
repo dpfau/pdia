@@ -10,14 +10,14 @@ import org.apache.commons.math.special.Gamma;
 
 public class PDIA implements Serializable {
 
-    public RestaurantFranchise rf;
-    public HashMap<Pair, Integer> dMatrix;
-    public HashMap<Integer, int[]> cMatrix;
-    public int nSymbols;
-    public double beta;
-    public double logLike;
-    public static Random RNG = new Random(0L);
-    public static final long serialVersionUID = 1L;
+    protected RestaurantFranchise rf;
+    protected HashMap<Pair, Integer> dMatrix;
+    protected HashMap<Integer, int[]> cMatrix;
+    protected int nSymbols;
+    protected double beta;
+    protected double logLike;
+    protected static Random RNG = new Random(0L);
+    private static final long serialVersionUID = 1L;
 
     public PDIA(int n) {
         rf = new RestaurantFranchise(1);
@@ -174,7 +174,7 @@ public class PDIA implements Serializable {
      * Samples the hyperparameter over the emission distribution
      * @param proposalSTD
      */
-    public void sampleBeta(double proposalSTD) {
+    protected void sampleBeta(double proposalSTD) {
         double currentBeta = beta;
 
         double proposal = currentBeta + RNG.nextGaussian() * proposalSTD;
@@ -195,7 +195,7 @@ public class PDIA implements Serializable {
      * One sweep of sampling over the transition matrix.
      * @param data
      */
-    public void sampleD(int[][]... data) {
+    protected void sampleD(int[][]... data) {
         for (Pair p : randomPairArray()) {
             if (dMatrix.get(p) != null) {
                 sampleD(p,data);
@@ -209,7 +209,7 @@ public class PDIA implements Serializable {
      * @param p The state/symbol pair to be sampled
      * @param data
      */
-    public void sampleD(Pair p, int[][]... data) {
+    protected void sampleD(Pair p, int[][]... data) {
         int[] context = new int[]{p.symbol};
         double cLogLik = logLike;
         Integer currentType = dMatrix.get(p);
@@ -236,7 +236,7 @@ public class PDIA implements Serializable {
     /**
      * After sampling, clears out state/symbol pairs for which there are no observed data
      */
-    public void fixDMatrix() {
+    protected void fixDMatrix() {
         HashSet<Pair> keysToDiscard = new HashSet<Pair>();
 
         for (Pair p : dMatrix.keySet()) {
