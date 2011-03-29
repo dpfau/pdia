@@ -20,8 +20,8 @@ public class Main {
 
 			//int s = 1;
 
-			//PDIA[] pdias = PDIA.sample(15000, 5, 3500, new int[]{alphabet.size()}, train);
-			PDIA[] pdias = PDIA.sample(5, 5, 5, new int[]{alphabet.size()}, train);
+			PDIA[] pdias = PDIA.sample(15000, 5, 3500, new int[]{alphabet.size()}, train);
+			//PDIA[] pdias = PDIA.sample(5, 5, 5, new int[]{alphabet.size()}, train);
 			for (PDIA pdia : pdias) {
 				double[] score = PDIA.score(new PDIA[]{pdia}, 0, test);
 
