@@ -5,12 +5,17 @@
 package edu.columbia.stat.wood.pdia;
 
 import edu.columbia.stat.wood.hpyp.Restaurant;
+import java.io.BufferedInputStream;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.LinkedList;
 
 /**
@@ -99,4 +104,50 @@ public class Util {
         }
         return len;
     }
+
+    public static int[][] loadText(String path, HashMap<Integer,Integer> alphabet) throws FileNotFoundException, IOException {
+        File in = new File(path);
+        alphabet.put(10,-1); // assign newline a special value
+        BufferedInputStream bis = new BufferedInputStream(new FileInputStream(in));
+        int[] symbols = new int[(int) in.length()];
+
+        int ind = 0;
+        int b;
+        int len = 0;
+        while ((b = bis.read()) > -1) {
+            Integer c = alphabet.get(b);
+            if (c != null) {
+                symbols[(ind++)] = c;
+                if (c == -1) len ++;
+            } else {
+                symbols[(ind++)] = alphabet.size() - 1;
+                alphabet.put(b, alphabet.size() - 1);
+            }
+        }
+        if (symbols[symbols.length - 1] != -1) {
+            len ++;
+            int[] newSymbols = new int[symbols.length + 1];
+            System.arraycopy(symbols, 0, newSymbols, 0, symbols.length);
+            newSymbols[newSymbols.length - 1] = -1;
+            symbols = newSymbols;
+        } // if the file does not end with a newline
+
+        int[][] data = new int[len][];
+        int i = 0;
+        int line = 0;
+        for (int j = 0; j < symbols.length; j++) {
+            if (symbols[j] == -1) {
+                data[line] = new int[j - i];
+                System.arraycopy(symbols, i, data[line], 0, j - i);
+                i = j + 1;
+                line++;
+            }
+        }
+        if (bis != null) bis.close();
+        return data;
+    }
+
+    /*public static int[][] loadTokens(String path) {
+
+    }*/
 }
