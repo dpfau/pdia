@@ -176,19 +176,8 @@ public class PDIA implements Serializable, PDIAInterface {
         logLike = logLik();
     }
 
-    /**
-     * Returns a deep copy of cMatrix
-     * @return
-     */
-    public HashMap<Integer,int[]> countCopy() {
-        HashMap<Integer,int[]> copy = new HashMap<Integer,int[]>();
-        for (Integer i : cMatrix.keySet()) {
-            int[] cts = cMatrix.get(i);
-            int[] cpy = new int[cts.length];
-            System.arraycopy(cts,0,cpy,0,cts.length);
-            copy.put(i,cpy);
-        }
-        return copy;
+    public HashMap<Integer,int[]> stupidCountCopy() {
+        return Util.<HashMap<Integer,int[]>>copy(cMatrix);
     }
 
     /**
@@ -275,7 +264,8 @@ public class PDIA implements Serializable, PDIAInterface {
         rf.seat(proposedType, context);
         dMatrix.put(p, proposedType);
 
-        HashMap<Integer, int[]> oldCounts = countCopy();
+        HashMap<Integer, int[]> oldCounts = (HashMap<Integer,int[]>)Util.intArrayMapCopy(cMatrix);
+        stupidCountCopy(); // check to see how bad the speed difference is
         count(data);
         double pLogLik = logLik();
 
@@ -403,7 +393,7 @@ public class PDIA implements Serializable, PDIAInterface {
         }
     }
 
-    private Pair[] randomPairArray() {
+    protected Pair[] randomPairArray() {
         Object[] oa = Util.randArray(dMatrix.keySet());
         Pair[] pa = new Pair[oa.length];
         System.arraycopy(oa, 0, pa, 0, oa.length);

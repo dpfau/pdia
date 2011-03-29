@@ -27,6 +27,13 @@ public class PDIASample implements Serializable, Iterable<PDIAInterface>, Iterat
         score = pdia.jointScore();
     }
 
+    public PDIASample(PDIA p, int[][]... data) {
+        pdia = p;
+        this.data = data;
+        pdia.count(data);
+        score = pdia.jointScore();
+    }
+
     public boolean hasNext() { return true; }
 
     public PDIAInterface next() {

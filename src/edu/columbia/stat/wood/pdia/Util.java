@@ -14,9 +14,10 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.Map;
+import java.util.TreeMap;
 
 /**
  *
@@ -42,6 +43,22 @@ public class Util {
             cnfe.printStackTrace();
         }
         return obj;
+    }
+
+    public static Map<Integer,int[]> intArrayMapCopy(Map<Integer,int[]> map) {
+        Map<Integer,int[]> copy = null;
+        if (map instanceof HashMap) {
+            copy = new HashMap<Integer,int[]>();
+        } else if (map instanceof TreeMap) {
+            copy = new TreeMap<Integer,int[]>();
+        }
+        for (Integer i : map.keySet()) {
+            int[] cts = map.get(i);
+            int[] cpy = new int[cts.length];
+            System.arraycopy(cts,0,cpy,0,cts.length);
+            copy.put(i,cpy);
+        }
+        return copy;
     }
 
     // JHH: updated this to be more efficient; it now runs in O(n) time
