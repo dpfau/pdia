@@ -8,7 +8,7 @@ import java.util.HashSet;
 import java.util.Random;
 import org.apache.commons.math.special.Gamma;
 
-public class PDIA implements Serializable {
+public class PDIA implements Serializable, PDIAInterface {
 
     protected RestaurantFranchise rf;
     protected HashMap<Pair, Integer> dMatrix;
@@ -93,12 +93,12 @@ public class PDIA implements Serializable {
     public static PDIA[] sample(int burnIn, int interval, int samples, int[] nSymbols, int[][]... data) {
         PDIA[] ps = new PDIA[samples];
         int i = 0;
-        for (PDIA p : PDIA.sample(nSymbols,data)) {
+        for (PDIAInterface p : PDIA.sample(nSymbols,data)) {
             if (i < burnIn) {
                 System.out.println("Burn In Sample " + i + " of " + burnIn);
             }
             if (i >= burnIn && (i-burnIn) % interval == 0) {
-                ps[(i-burnIn)/interval] = Util.copy(p);
+                ps[(i-burnIn)/interval] = (PDIA)Util.copy(p);
                 System.out.println("Wrote sample " + Integer.toString((i-burnIn)/interval) + " of " + samples);
             }
             i++;
@@ -131,6 +131,33 @@ public class PDIA implements Serializable {
     }
 
     /**
+     * Given a state/symbol pair, returns the next state, or null if that state
+     * is not in the transition matrix
+     * @param p
+     * @return
+     */
+    public Integer transition(Pair p) {
+        return dMatrix.get(p);
+    }
+
+    /**
+     * Given a state/symbol pair, returns the next state, and modifies the
+     * transition matrix to fill in a new state if one is not there already.
+     * @param p
+     * @return
+     */
+    public Integer transitionAndAdd(Pair p) {
+        Integer state = transition(p);
+        if (state == null) {
+            int[] context = {p.symbol};
+            state = rf.generate(context);
+            rf.seat(state, context);
+            dMatrix.put(p, state);
+        }
+        return state;
+    }
+
+    /**
      * Runs over all the data, filling the field cMatrix.
      * cMatrix - Hash map from states to array of symbols, giving the number
      * of times that symbol is emitted from that state.
@@ -149,19 +176,8 @@ public class PDIA implements Serializable {
         logLike = logLik();
     }
 
-    /**
-     * Returns a deep copy of cMatrix
-     * @return
-     */
-    public HashMap<Integer,int[]> countCopy() {
-        HashMap<Integer,int[]> copy = new HashMap<Integer,int[]>();
-        for (Integer i : cMatrix.keySet()) {
-            int[] cts = cMatrix.get(i);
-            int[] cpy = new int[cts.length];
-            System.arraycopy(cts,0,cpy,0,cts.length);
-            copy.put(i,cpy);
-        }
-        return copy;
+    public HashMap<Integer,int[]> stupidCountCopy() {
+        return Util.<HashMap<Integer,int[]>>copy(cMatrix);
     }
 
     /**
@@ -213,11 +229,17 @@ public class PDIA implements Serializable {
         }
     }
 
+    public void sampleOnce(int[][]... data) {
+        sampleD(data);
+        rf.sample();
+        sampleBeta(1.0);
+    }
+
     /**
      * One sweep of sampling over the transition matrix.
      * @param data
      */
-    protected void sampleD(int[][]... data) {
+    private void sampleD(int[][]... data) {
         for (Pair p : randomPairArray()) {
             if (dMatrix.get(p) != null) {
                 sampleD(p,data);
@@ -231,7 +253,7 @@ public class PDIA implements Serializable {
      * @param p The state/symbol pair to be sampled
      * @param data
      */
-    protected void sampleD(Pair p, int[][]... data) {
+    private void sampleD(Pair p, int[][]... data) {
         int[] context = new int[]{p.symbol};
         double cLogLik = logLike;
         Integer currentType = dMatrix.get(p);
@@ -239,17 +261,18 @@ public class PDIA implements Serializable {
 
         rf.unseat(currentType, context);
         Integer proposedType = rf.generate(context);
-        rf.seat(currentType, context);
+        rf.seat(proposedType, context);
         dMatrix.put(p, proposedType);
 
-        HashMap<Integer, int[]> oldCounts = countCopy();
+        HashMap<Integer, int[]> oldCounts = (HashMap<Integer,int[]>)Util.intArrayMapCopy(cMatrix);
+        stupidCountCopy(); // check to see how bad the speed difference is
         count(data);
         double pLogLik = logLik();
 
         if (Math.log(RNG.nextDouble()) < pLogLik - cLogLik) { // accept
-            rf.unseat(currentType, context);
-            rf.seat(proposedType, context);
         } else { // reject
+            rf.unseat(proposedType, context);
+            rf.seat(currentType, context);
             cMatrix = oldCounts;
             logLike = cLogLik;
             dMatrix.put(p, currentType);
@@ -259,7 +282,7 @@ public class PDIA implements Serializable {
     /**
      * After sampling, clears out state/symbol pairs for which there are no observed data
      */
-    protected void fixDMatrix() {
+    private void fixDMatrix() {
         HashSet<Pair> keysToDiscard = new HashSet<Pair>();
 
         for (Pair p : dMatrix.keySet()) {
@@ -370,7 +393,7 @@ public class PDIA implements Serializable {
         }
     }
 
-    private Pair[] randomPairArray() {
+    protected Pair[] randomPairArray() {
         Object[] oa = Util.randArray(dMatrix.keySet());
         Pair[] pa = new Pair[oa.length];
         System.arraycopy(oa, 0, pa, 0, oa.length);
