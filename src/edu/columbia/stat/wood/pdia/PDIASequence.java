@@ -13,14 +13,14 @@ import java.util.Iterator;
  * @author davidpfau
  */
 public class PDIASequence implements Serializable, Iterator<Pair>, Iterable<Pair> {
-    public PDIA pdia;
+    public PDIAInterface pdia;
     public int[][][] data; // First index is type of data, second is line, third is position in line
     private int line;
     private int pos;
     private Integer state;
     private static final long serialVersionUID = 1L;
 
-    public PDIASequence(PDIA p, int init, int[][]... data) {
+    public PDIASequence(PDIAInterface p, int init, int[][]... data) {
         pdia = p;
         this.data = data;
         line = 0;
@@ -44,13 +44,7 @@ public class PDIASequence implements Serializable, Iterator<Pair>, Iterable<Pair
             state = 0;
         } else {
             pos++;
-            state = pdia.dMatrix.get(p);
-            if (state == null) {
-                int[] context = {p.symbol};
-                state = pdia.rf.generate(context);
-                pdia.rf.seat(state, context);
-                pdia.dMatrix.put(p,state);
-            }
+            state = pdia.transitionAndAdd(p);
         }
         return p;
     }

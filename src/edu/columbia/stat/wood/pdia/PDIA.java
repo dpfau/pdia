@@ -8,7 +8,7 @@ import java.util.HashSet;
 import java.util.Random;
 import org.apache.commons.math.special.Gamma;
 
-public class PDIA implements Serializable {
+public class PDIA implements Serializable, PDIAInterface {
 
     protected RestaurantFranchise rf;
     protected HashMap<Pair, Integer> dMatrix;
@@ -93,12 +93,12 @@ public class PDIA implements Serializable {
     public static PDIA[] sample(int burnIn, int interval, int samples, int[] nSymbols, int[][]... data) {
         PDIA[] ps = new PDIA[samples];
         int i = 0;
-        for (PDIA p : PDIA.sample(nSymbols,data)) {
+        for (PDIAInterface p : PDIA.sample(nSymbols,data)) {
             if (i < burnIn) {
                 System.out.println("Burn In Sample " + i + " of " + burnIn);
             }
             if (i >= burnIn && (i-burnIn) % interval == 0) {
-                ps[(i-burnIn)/interval] = Util.copy(p);
+                ps[(i-burnIn)/interval] = (PDIA)Util.copy(p);
                 System.out.println("Wrote sample " + Integer.toString((i-burnIn)/interval) + " of " + samples);
             }
             i++;
@@ -128,6 +128,33 @@ public class PDIA implements Serializable {
      */
     public Integer transition(int state, int symbol) {
         return dMatrix.get(new Pair(state,symbol));
+    }
+
+    /**
+     * Given a state/symbol pair, returns the next state, or null if that state
+     * is not in the transition matrix
+     * @param p
+     * @return
+     */
+    public Integer transition(Pair p) {
+        return dMatrix.get(p);
+    }
+
+    /**
+     * Given a state/symbol pair, returns the next state, and modifies the
+     * transition matrix to fill in a new state if one is not there already.
+     * @param p
+     * @return
+     */
+    public Integer transitionAndAdd(Pair p) {
+        Integer state = transition(p);
+        if (state == null) {
+            int[] context = {p.symbol};
+            state = rf.generate(context);
+            rf.seat(state, context);
+            dMatrix.put(p, state);
+        }
+        return state;
     }
 
     /**
@@ -213,11 +240,17 @@ public class PDIA implements Serializable {
         }
     }
 
+    public void sampleOnce(int[][]... data) {
+        sampleD(data);
+        rf.sample();
+        sampleBeta(1.0);
+    }
+
     /**
      * One sweep of sampling over the transition matrix.
      * @param data
      */
-    protected void sampleD(int[][]... data) {
+    private void sampleD(int[][]... data) {
         for (Pair p : randomPairArray()) {
             if (dMatrix.get(p) != null) {
                 sampleD(p,data);
@@ -231,7 +264,7 @@ public class PDIA implements Serializable {
      * @param p The state/symbol pair to be sampled
      * @param data
      */
-    protected void sampleD(Pair p, int[][]... data) {
+    private void sampleD(Pair p, int[][]... data) {
         int[] context = new int[]{p.symbol};
         double cLogLik = logLike;
         Integer currentType = dMatrix.get(p);
@@ -259,7 +292,7 @@ public class PDIA implements Serializable {
     /**
      * After sampling, clears out state/symbol pairs for which there are no observed data
      */
-    protected void fixDMatrix() {
+    private void fixDMatrix() {
         HashSet<Pair> keysToDiscard = new HashSet<Pair>();
 
         for (Pair p : dMatrix.keySet()) {
