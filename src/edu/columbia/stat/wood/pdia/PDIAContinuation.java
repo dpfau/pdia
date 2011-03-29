@@ -45,7 +45,7 @@ public class PDIAContinuation implements Serializable, Iterable<Pair>, Iterator<
     }
 
     public Pair next() {
-        int symbol = pdia.nSymbols;
+        int symbol = pdia.nSymbols-1;
         int[] cts = pdia.cMatrix.get(state);
         if (cts == null) {
             cts = new int[pdia.nSymbols];

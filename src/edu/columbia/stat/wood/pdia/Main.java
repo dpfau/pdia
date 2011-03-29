@@ -18,17 +18,9 @@ public class Main {
 		try {
 			oos = new ObjectOutputStream(new GZIPOutputStream(new FileOutputStream(objs)));
 
-			//int s = 1;
-
-			//PDIA[] pdias = PDIA.sample(15000, 5, 3500, new int[]{alphabet.size()}, train);
-			PDIA[] pdias = PDIA.sample(5, 5, 5, new int[]{alphabet.size()}, train);
+			PDIA[] pdias = PDIA.sample(Integer.parseInt(args[1]), 5, Integer.parseInt(args[2]), new int[]{alphabet.size()}, train);
 			for (PDIA pdia : pdias) {
 				double[] score = PDIA.score(new PDIA[]{pdia}, 0, test);
-
-				//      oos.writeObject(pdia.beta);
-				//      oos.writeObject(pdia.dMatrix);
-				//      oos.writeObject(pdia.rf);
-
 				System.out.println("SingleMachinePrediction = " + Util.scoreToLogLoss(score));
 			}
 			System.out.println("Average Prediction = " + Util.scoreToLogLoss(PDIA.score(pdias, 0, test)));

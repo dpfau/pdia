@@ -239,7 +239,7 @@ public class PDIA implements Serializable {
 
         rf.unseat(currentType, context);
         Integer proposedType = rf.generate(context);
-        rf.seat(currentType, context);
+        rf.seat(proposedType, context);
         dMatrix.put(p, proposedType);
 
         HashMap<Integer, int[]> oldCounts = countCopy();
@@ -247,9 +247,9 @@ public class PDIA implements Serializable {
         double pLogLik = logLik();
 
         if (Math.log(RNG.nextDouble()) < pLogLik - cLogLik) { // accept
-            rf.unseat(currentType, context);
-            rf.seat(proposedType, context);
         } else { // reject
+            rf.unseat(proposedType, context);
+            rf.seat(currentType, context);
             cMatrix = oldCounts;
             logLike = cLogLik;
             dMatrix.put(p, currentType);
