@@ -143,6 +143,21 @@ public class PDIA implements Serializable {
     }
 
     /**
+     * Returns a deep copy of cMatrix
+     * @return
+     */
+    public HashMap<Integer,int[]> countCopy() {
+        HashMap<Integer,int[]> copy = new HashMap<Integer,int[]>();
+        for (Integer i : cMatrix.keySet()) {
+            int[] cts = cMatrix.get(i);
+            int[] cpy = new int[cts.length];
+            System.arraycopy(cts,0,cpy,0,cts.length);
+            copy.put(i,cpy);
+        }
+        return copy;
+    }
+
+    /**
      * @return The joint log likelihood of the model and the data
      */
     public double jointScore() {
@@ -217,18 +232,19 @@ public class PDIA implements Serializable {
 
         rf.unseat(currentType, context);
         Integer proposedType = rf.generate(context);
+        rf.seat(currentType, context);
         dMatrix.put(p, proposedType);
 
-        HashMap<Integer, int[]> oldCounts = (HashMap<Integer, int[]>)cMatrix.clone();
+        HashMap<Integer, int[]> oldCounts = countCopy();
         count(data);
         double pLogLik = logLik();
 
         if (Math.log(RNG.nextDouble()) < pLogLik - cLogLik) { // accept
+            rf.unseat(currentType, context);
             rf.seat(proposedType, context);
         } else { // reject
             cMatrix = oldCounts;
             logLike = cLogLik;
-            rf.seat(currentType, context);
             dMatrix.put(p, currentType);
         }
     }
