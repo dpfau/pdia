@@ -348,12 +348,7 @@ public class PDIA implements Serializable {
     }
 
     private Pair[] randomPairArray() {
-        Object[] roa = Util.randArray(dMatrix.keySet());
-        Pair[]   rpa = new Pair[roa.length];
-        for (int i = 0; i < roa.length; i++) {
-            rpa[i] = (Pair)roa[i];
-        }
-        return rpa;
+        return Util.randArray(dMatrix.keySet());
     }
 
 }

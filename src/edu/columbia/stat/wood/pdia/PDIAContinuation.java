@@ -72,7 +72,7 @@ public class PDIAContinuation implements Serializable, Iterable<Pair>, Iterator<
             pdia.rf.seat(state, context);
             pdia.dMatrix.put(p, state);
         }
-        if (length != -1) length --;
+        if (length != -1) length--;
         return p;
     }
 
