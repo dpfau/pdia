@@ -1,43 +1,42 @@
 package edu.columbia.stat.wood.pdia;
 
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.ObjectOutputStream;
+import java.io.*;
 import java.util.HashMap;
+import java.util.zip.*;
 
 public class Main {
 
+	public static void main(String[] args) throws FileNotFoundException, IOException {
 
-    public static void main(String[] args)
-            throws FileNotFoundException, IOException {
-        File objs = new File(args[0] + "results/objectsFromPDIA_hpy.txt.gz");
+		File objs = new File(args[0] + "results/PDIAs_hpy.txt.gz");
+		
+		ObjectOutputStream oos = null;
+		HashMap<Integer,Integer> alphabet = new HashMap<Integer,Integer>();
+		int[][] train = Util.loadText(args[0] + "data/aiw.train", alphabet);
+		int[][] test = Util.loadText(args[0] + "data/aiw.test", alphabet);
 
-        ObjectOutputStream oos = null;
-        HashMap<Integer,Integer> alphabet = new HashMap<Integer,Integer>();
-        int[][] train = Util.loadText(args[0] + "data/aiw.train", alphabet);
-        int[][] test = Util.loadText(args[0] + "data/aiw.test", alphabet);
+		try {
+			oos = new ObjectOutputStream(new GZIPOutputStream(new FileOutputStream(objs)));
 
-        //try {
-        //    oos = new ObjectOutputStream(new GZIPOutputStream(new FileOutputStream(objs)));
+			//int s = 1;
 
-        //int s = 1;
+			//PDIA[] pdias = PDIA.sample(15000, 5, 3500, new int[]{alphabet.size()}, train);
+			PDIA[] pdias = PDIA.sample(5, 5, 5, new int[]{alphabet.size()}, train);
+			for (PDIA pdia : pdias) {
+				double[] score = PDIA.score(new PDIA[]{pdia}, 0, test);
 
-        PDIA[] pdias = PDIA.sample(15000, 5, 3500, new int[]{27}, train);
-        for (PDIA pdia : pdias) {
-        	double[] score = PDIA.score(new PDIA[]{pdia}, 0, test);
+				//      oos.writeObject(pdia.beta);
+				//      oos.writeObject(pdia.dMatrix);
+				//      oos.writeObject(pdia.rf);
 
-        	//      oos.writeObject(pdia.beta);
-        	//      oos.writeObject(pdia.dMatrix);
-        	//      oos.writeObject(pdia.rf);
-
-        	System.out.println("SingleMachinePrediction = " + Util.scoreToLogLoss(score));
-        }
-        System.out.println("Average Prediction = " + Util.scoreToLogLoss(PDIA.score(pdias, 0, test)));
-        //} finally {
-        //    if (oos != null) {
-        //        oos.close();
-        //    }
-        //}
+				System.out.println("SingleMachinePrediction = " + Util.scoreToLogLoss(score));
+			}
+			System.out.println("Average Prediction = " + Util.scoreToLogLoss(PDIA.score(pdias, 0, test)));
+			oos.writeObject(pdias);
+		} finally {
+			if (oos != null) {
+				oos.close();
+			}
+		}
     }
 }

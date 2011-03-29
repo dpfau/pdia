@@ -62,6 +62,13 @@ public class PDIA implements Serializable {
         }
         return line;
     }
+    
+    /**
+     * Set the seed of RNG using the current system time. 
+     */
+    public static void reseedRNG() {
+    	RNG.setSeed(System.currentTimeMillis());
+    }
 
     /**
      * Given data, returns an iterator over PDIA that forms an MCMC sampler
@@ -368,7 +375,9 @@ public class PDIA implements Serializable {
         Pair[] pa = new Pair[oa.length];
         System.arraycopy(oa, 0, pa, 0, oa.length);
         return pa;
-    }    
+    }  
+    
+    
     
 
 }
