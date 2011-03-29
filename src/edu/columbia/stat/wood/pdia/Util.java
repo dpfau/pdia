@@ -14,6 +14,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 
@@ -119,11 +120,12 @@ public class Util {
         File in = new File(path);
         alphabet.put((int)'\n', NEWLINE); // assign newline a special value
         BufferedInputStream bis = new BufferedInputStream(new FileInputStream(in));
-        int[] symbols = new int[(int) in.length()];
+        int[] symbols = new int[(int) in.length() + 1]; // +1 so we can add a newline at the end
 
         int ind = 0;
         int b;
         int len = 0;
+        int numLines = 1;
         while ((b = bis.read()) > -1) {
             Integer c = alphabet.get(b);
             if (c != null) {
@@ -133,20 +135,28 @@ public class Util {
                 symbols[(ind++)] = alphabet.size() - 1;
                 alphabet.put(b, alphabet.size() - 1);
             }
+            if (b == '\n') {
+            	numLines++;
+            }
         }
-        if (symbols[symbols.length - 1] != -1) {
-            len ++;
-            int[] newSymbols = new int[symbols.length + 1];
-            System.arraycopy(symbols, 0, newSymbols, 0, symbols.length);
-            newSymbols[newSymbols.length - 1] = -1;
-            symbols = newSymbols;
-        } // if the file does not end with a newline
+        
+        symbols[symbols.length - 1] = NEWLINE;
+        len++;
+        
+        assert(len == symbols.length);
+//        if (symbols[symbols.length - 1] != NEWLINE) {
+//            len ++;
+//            int[] newSymbols = new int[symbols.length + 1];
+//            System.arraycopy(symbols, 0, newSymbols, 0, symbols.length);
+//            newSymbols[newSymbols.length - 1] = NEWLINE;
+//            symbols = newSymbols;
+//        } // if the file does not end with a newline
 
-        int[][] data = new int[len][];
+        int[][] data = new int[numLines][];
         int i = 0;
         int line = 0;
         for (int j = 0; j < symbols.length; j++) {
-            if (symbols[j] == -1) {
+            if (symbols[j] == NEWLINE) {
                 data[line] = new int[j - i];
                 System.arraycopy(symbols, i, data[line], 0, j - i);
                 i = j + 1;

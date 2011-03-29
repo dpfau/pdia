@@ -2,19 +2,15 @@ package edu.columbia.stat.wood.pdia;
 
 import java.io.File;
 import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
-import java.util.Arrays;
 import java.util.HashMap;
-import java.util.zip.GZIPOutputStream;
 
 public class Main {
-	
-	private static final int NEWLINE = -1;
+
 
     public static void main(String[] args)
-            throws FileNotFoundException, IOException, ClassNotFoundException {
+            throws FileNotFoundException, IOException {
         File objs = new File(args[0] + "results/objectsFromPDIA_hpy.txt.gz");
 
         ObjectOutputStream oos = null;
@@ -25,7 +21,7 @@ public class Main {
         //try {
         //    oos = new ObjectOutputStream(new GZIPOutputStream(new FileOutputStream(objs)));
 
-        int s = 1;
+        //int s = 1;
 
         PDIA[] pdias = PDIA.sample(15000, 5, 3500, new int[]{27}, train);
         for (PDIA pdia : pdias) {
