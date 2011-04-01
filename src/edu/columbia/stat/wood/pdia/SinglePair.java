@@ -39,7 +39,7 @@ public class SinglePair implements Serializable, Pair {
     public int hashCode() {
         int hash = 7;
         hash = 29 * hash + this.state;
-        hash = 29 * hash + this.symbol;
+        hash = 37 * hash + this.symbol;
         return hash;
     }
 }
