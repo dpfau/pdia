@@ -20,10 +20,10 @@ public class Main {
 			
 			PDIA_HPYP[] pdias = PDIA_HPYP.sample(Integer.parseInt(args[1]), 5, Integer.parseInt(args[2]), new int[]{alphabet.size()}, train);
 			for (PDIA_HPYP pdia : pdias) {
-				double[] score = PDIA_HPYP.score(new PDIA[]{pdia}, 0, test);
+				double[] score = PDIA_HPYP.score(new PDIA_Dirichlet[]{pdia}, 0, test);
 				System.out.println("SingleMachinePrediction = " + Util.scoreToLogLoss(score));
 			}
-			System.out.println("Average Prediction = " + Util.scoreToLogLoss(PDIA.score(pdias, 0, test)));
+			System.out.println("Average Prediction = " + Util.scoreToLogLoss(PDIA_Dirichlet.score(pdias, 0, test)));
 			oos.writeObject(pdias);
 		} finally {
 			if (oos != null) {

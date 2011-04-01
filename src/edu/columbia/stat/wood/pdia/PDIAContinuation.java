@@ -12,8 +12,8 @@ import java.util.Iterator;
  * Generates a sequence from a given PDIA, with either a fixed or unbounded length
  * @author davidpfau
  */
-public class PDIAContinuation implements Serializable, Iterable<Pair>, Iterator<Pair> {
-    public PDIA pdia;
+public class PDIAContinuation implements Serializable, Iterable<SinglePair>, Iterator<SinglePair> {
+    public PDIA_Dirichlet pdia;
     private Integer state;
     private int length;
     double betaOverNSymbols;
@@ -25,7 +25,7 @@ public class PDIAContinuation implements Serializable, Iterable<Pair>, Iterator<
      * @param init The initial state of the continuation
      * @param len The length of the continuation
      */
-    public PDIAContinuation(PDIA p, int init, int len) {
+    public PDIAContinuation(PDIA_Dirichlet p, int init, int len) {
         pdia = p;
         state = init;
         length = len;
@@ -37,34 +37,34 @@ public class PDIAContinuation implements Serializable, Iterable<Pair>, Iterator<
      * @param p
      * @param init The initial state of the continuation
      */
-    public PDIAContinuation(PDIA p, int init) {
+    public PDIAContinuation(PDIA_Dirichlet p, int init) {
         pdia = p;
         state = init;
         length = -1;
         betaOverNSymbols = pdia.beta/pdia.nSymbols;
     }
 
-    public Pair next() {
+    public SinglePair next() {
         int symbol = pdia.nSymbols-1;
         int[] cts = pdia.cMatrix.get(state);
         if (cts == null) {
             cts = new int[pdia.nSymbols];
             pdia.cMatrix.put(state, cts);
-            symbol = PDIA.RNG.nextInt(pdia.nSymbols); // sample new symbol uniformly for unobserved state
+            symbol = PDIA_Dirichlet.RNG.nextInt(pdia.nSymbols); // sample new symbol uniformly for unobserved state
         } else {
             double[] cuSum = new double[pdia.nSymbols];
             cuSum[0] = cts[0] + betaOverNSymbols;
             for (int i = 1; i < pdia.nSymbols; i++) {
                 cuSum[i] = cuSum[i-1] + cts[i] + betaOverNSymbols;
             }
-            double samp = cuSum[pdia.nSymbols-1] * PDIA.RNG.nextDouble();
+            double samp = cuSum[pdia.nSymbols-1] * PDIA_Dirichlet.RNG.nextDouble();
             for (int i = 0; i < pdia.nSymbols; i++) {
                 if (cuSum[i] >= samp) symbol = i;
             }
         }
 
         cts[symbol] ++;
-        Pair p = new Pair(state,symbol);
+        SinglePair p = new SinglePair(state,symbol);
         state = pdia.transition(state, symbol);
         if (state == null) {
             int[] context = {symbol};
@@ -76,7 +76,7 @@ public class PDIAContinuation implements Serializable, Iterable<Pair>, Iterator<
         return p;
     }
 
-    public Iterator<Pair> iterator() { return this; }
+    public Iterator<SinglePair> iterator() { return this; }
     public boolean hasNext() { return length == -1 || length > 0; }
     public void remove() {}
 }

@@ -10,7 +10,7 @@ import java.util.HashSet;
  * A modified version of PDIA where the emission distributions are sampled from an HPYP instead of iid Dirichlet
  * @author davidpfau
  */
-public class PDIA_HPYP extends PDIA {
+public class PDIA_HPYP extends PDIA_Dirichlet {
 
     private RestaurantFranchise emitRF;
     private Discounts emitD;
@@ -64,7 +64,7 @@ public class PDIA_HPYP extends PDIA {
     public static PDIA_HPYP[] sample(int burnIn, int interval, int samples, int[] nSymbols, int[][]... data) {
         PDIA_HPYP[] ps = new PDIA_HPYP[samples];
         int i = 0;
-        for (PDIAInterface p : PDIA_HPYP.sample(nSymbols,data)) {
+        for (PDIA p : PDIA_HPYP.sample(nSymbols,data)) {
             if (i < burnIn) {
                 System.out.println("Burn In Sample " + i + " of " + burnIn);
             }
@@ -95,8 +95,8 @@ public class PDIA_HPYP extends PDIA {
         emitRF = new RestaurantFranchise(nSymbols);
         emitRF.concentrations = emitC;
         emitRF.discounts      = emitD;
-        for (Pair p : run(data)) {
-            emitRF.seat(p.symbol, new int[]{p.state});
+        for (SinglePair p : run(data)) {
+            emitRF.seat(p.symbol(0), new int[]{p.state()});
         }
         logLike = logLik();
     }
@@ -122,7 +122,7 @@ public class PDIA_HPYP extends PDIA {
      * @param data
      */
     private void sampleD(int[][]... data) {
-        for (Pair p : randomPairArray()) {
+        for (SinglePair p : randomPairArray()) {
             if (dMatrix.get(p) != null) {
                 sampleD(p,data);
             }
@@ -135,8 +135,8 @@ public class PDIA_HPYP extends PDIA {
      * @param p The state/symbol pair to be sampled
      * @param data
      */
-    private void sampleD(Pair p, int[][]... data) {
-        int[] context = new int[]{p.symbol};
+    private void sampleD(SinglePair p, int[][]... data) {
+        int[] context = new int[]{p.symbol(0)};
         double cLogLik = logLike;
         Integer currentType = dMatrix.get(p);
         assert (currentType != null);
@@ -164,15 +164,15 @@ public class PDIA_HPYP extends PDIA {
      * After sampling, clears out state/symbol pairs for which there are no observed data
      */
     private void fixDMatrix() {
-        HashSet<Pair> keysToDiscard = new HashSet<Pair>();
+        HashSet<SinglePair> keysToDiscard = new HashSet<SinglePair>();
 
-        for (Pair p : dMatrix.keySet()) {
-            Restaurant r = emitRF.getDontAdd(new int[]{p.state});
+        for (SinglePair p : dMatrix.keySet()) {
+            Restaurant r = emitRF.getDontAdd(new int[]{p.state()});
             if (r == null) {
                 keysToDiscard.add(p);
             } else {
                 int[] custAndTbl = new int[2];
-                r.getCounts(p.symbol,custAndTbl);
+                r.getCounts(p.symbol(0),custAndTbl);
                 if (custAndTbl[0] == 0) {
                     keysToDiscard.add(p);
                 }
@@ -180,8 +180,8 @@ public class PDIA_HPYP extends PDIA {
         }
 
         int[] context = new int[1];
-        for (Pair p : keysToDiscard) {
-            context[0] = p.symbol;
+        for (SinglePair p : keysToDiscard) {
+            context[0] = p.symbol(0);
             rf.unseat(dMatrix.get(p), context);
             dMatrix.remove(p);
         }
@@ -204,9 +204,9 @@ public class PDIA_HPYP extends PDIA {
         double[] score = new double[totalLength];
 
         int index = 0;
-        for (Pair p : run(init,data)) {
-            score[(index++)] = emitRF.predictiveProbability(p.symbol, new int[]{p.state});
-            emitRF.seat(p.symbol, new int[]{p.state});
+        for (SinglePair p : run(init,data)) {
+            score[(index++)] = emitRF.predictiveProbability(p.symbol(0), new int[]{p.state()});
+            emitRF.seat(p.symbol(0), new int[]{p.state()});
         }
 
         return score;

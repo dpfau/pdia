@@ -21,7 +21,7 @@ public class LoadModels {
     public static void main(String[] args) {
         String path = "/Users/davidpfau/Documents/Wood Group/PDIA/";
         File objs = new File(path + "results/objectsFromPDIA_hpy.txt.gz");
-        PDIA[] ps = new PDIA[3500];
+        PDIA_Dirichlet[] ps = new PDIA_Dirichlet[3500];
         int[][] train = null;
         int[][] test = null;
         try {
@@ -38,14 +38,14 @@ public class LoadModels {
             ObjectInputStream ois = new ObjectInputStream(new GZIPInputStream(new FileInputStream(objs)));
             Object o = null;
             Double beta = 0.0;
-            HashMap<Pair,Integer> dMatrix = null;
+            HashMap<SinglePair,Integer> dMatrix = null;
             RestaurantFranchise rf = null;
             while ((o = ois.readObject()) != null) {
                 if (i % 3 == 0) beta = (Double) o;
-                if (i % 3 == 1) dMatrix = (HashMap<Pair, Integer>) o;
+                if (i % 3 == 1) dMatrix = (HashMap<SinglePair, Integer>) o;
                 if (i % 3 == 2) {
                     rf = (RestaurantFranchise) o;
-                    ps[j] = new PDIA(27);
+                    ps[j] = new PDIA_Dirichlet(27);
                     ps[j].rf = rf;
                     ps[j].beta = beta;
                     ps[j].dMatrix = dMatrix;
@@ -56,9 +56,9 @@ public class LoadModels {
             }
         } catch (EOFException e) {
             System.out.println(j);
-            PDIA[] ps2 = new PDIA[j];
+            PDIA_Dirichlet[] ps2 = new PDIA_Dirichlet[j];
             System.arraycopy(ps,0,ps2,0,j);
-            System.out.println(Util.scoreToLogLoss(PDIA.score(ps2, 0, test)));
+            System.out.println(Util.scoreToLogLoss(PDIA_Dirichlet.score(ps2, 0, test)));
         }
         catch (Exception e) {
             e.printStackTrace();
