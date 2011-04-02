@@ -10,6 +10,10 @@ import org.apache.commons.math.special.Gamma;
 
 /**
  * The default PDIA implementation, with iid Dirichlet emission distributions
+ *
+ * If multiple data arrays are passed to any method, all after the first will
+ * be ignored.  Varargs are only used for consistency with the interface.
+ *
  * @author Nick Bartlett and David Pfau, 2010-11
  */
 public class PDIA_Dirichlet implements Serializable, PDIA {
@@ -30,24 +34,16 @@ public class PDIA_Dirichlet implements Serializable, PDIA {
         beta = 10.0;
     }
 
-    /**
-     * Given one or more arrays of data, returns an iterator over all
-     * state/symbol pairs in that sequence
-     * @param data An arbitrary number of arrays of lines of data
-     * @return An iterator over state/symbol pairs
-     */
     public PDIASequence run(int[][]... data) {
-        return new PDIASequence(this,0,data);
+        PDIASequence seq = new PDIASequence(this,0,data);
+        seq.multi = false;
+        return seq;
     }
 
-    /**
-     * Same as run(int[][]... data), but with a specific initial state
-     * @param init Initial state for the first line of the data
-     * @param data
-     * @return
-     */
     public PDIASequence run(int init, int[][]... data) {
-        return new PDIASequence(this,init,data);
+        PDIASequence seq = new PDIASequence(this,init,data);
+        seq.multi = false;
+        return seq;
     }
 
 
@@ -80,9 +76,8 @@ public class PDIA_Dirichlet implements Serializable, PDIA {
      * @param data
      * @return The iterator over PDIA
      */
-    public static PDIASample sample(int[] nSymbols, int[][]... data) {
-        assert nSymbols.length == data.length : "Number of data types is inconsistent!";
-        return new PDIASample(nSymbols[0],data);
+    public static PDIASample sample(int nSymbols, int[][] data) {
+        return new PDIASample(nSymbols,data);
     }
 
     /**
@@ -94,7 +89,7 @@ public class PDIA_Dirichlet implements Serializable, PDIA {
      * @param data
      * @return An array of posterior samples from the Markov chain
      */
-    public static PDIA_Dirichlet[] sample(int burnIn, int interval, int samples, int[] nSymbols, int[][]... data) {
+    public static PDIA_Dirichlet[] sample(int burnIn, int interval, int samples, int nSymbols, int[][] data) {
         PDIA_Dirichlet[] ps = new PDIA_Dirichlet[samples];
         int i = 0;
         for (PDIA p : PDIA_Dirichlet.sample(nSymbols,data)) {
@@ -111,10 +106,6 @@ public class PDIA_Dirichlet implements Serializable, PDIA {
         return ps;
     }
 
-    /**
-     * @param return The number of states the data visits.
-     * Depends on the most recent int[][] data on which count(data) was called.
-     */
     public int states() { return cMatrix.size(); }
 
     /**
@@ -134,42 +125,24 @@ public class PDIA_Dirichlet implements Serializable, PDIA {
         return dMatrix.get(new SinglePair(state,symbol));
     }
 
-    /**
-     * Given a state/symbol pair, returns the next state, or null if that state
-     * is not in the transition matrix
-     * @param p
-     * @return
-     */
-    public Integer transition(SinglePair p) {
-        return dMatrix.get(p);
+    public Integer transition(Pair p) {
+        return dMatrix.get((SinglePair)p);
     }
 
-    /**
-     * Given a state/symbol pair, returns the next state, and modifies the
-     * transition matrix to fill in a new state if one is not there already.
-     * @param p
-     * @return
-     */
-    public Integer transitionAndAdd(SinglePair p) {
+    public Integer transitionAndAdd(Pair p) {
         Integer state = transition(p);
         if (state == null) {
             int[] context = p.symbol();
             state = rf.generate(context);
             rf.seat(state, context);
-            dMatrix.put(p, state);
+            dMatrix.put((SinglePair)p, state);
         }
         return state;
     }
 
-    /**
-     * Runs over all the data, filling the field cMatrix.
-     * cMatrix - Hash map from states to array of symbols, giving the number
-     * of times that symbol is emitted from that state.
-     * @param data
-     */
     public void count(int[][]... data) {
         cMatrix = new HashMap<Integer, int[]>();
-        for (SinglePair p : run(data)) {
+        for (Pair p : run(data)) {
             int[] counts = cMatrix.get(p.state());
             if (counts == null) {
                 counts = new int[nSymbols];
@@ -180,20 +153,10 @@ public class PDIA_Dirichlet implements Serializable, PDIA {
         logLike = logLik();
     }
 
-    public HashMap<Integer,int[]> stupidCountCopy() {
-        return Util.<HashMap<Integer,int[]>>copy(cMatrix);
-    }
-
-    /**
-     * @return The joint log likelihood of the model and the data
-     */
     public double jointScore() {
         return logLike + rf.logLik();
     }
 
-    /**
-     * @return The log likelihood of the data (for which cMatrix is a sufficient statistic)
-     */
     public double logLik() {
         double logLik = 0;
         double lgb = Gamma.logGamma(beta);
@@ -269,7 +232,6 @@ public class PDIA_Dirichlet implements Serializable, PDIA {
         dMatrix.put(p, proposedType);
 
         HashMap<Integer, int[]> oldCounts = (HashMap<Integer,int[]>)Util.intArrayMapCopy(cMatrix);
-        stupidCountCopy(); // check to see how bad the speed difference is
         count(data);
         double pLogLik = logLik();
 
@@ -304,13 +266,6 @@ public class PDIA_Dirichlet implements Serializable, PDIA {
         }
     }
 
-    /**
-     * Returns an array that gives the predictive probability of each data point,
-     * given the training data and the previous data in the same array
-     * @param init Initial state of the PDIA
-     * @param data
-     * @return The predictive probability of each element of data
-     */
     public double[] score(int init, int[][]... data) {
         int totalLength = 0;
         for (int i = 0; i < data[0].length; i++) {
@@ -320,7 +275,7 @@ public class PDIA_Dirichlet implements Serializable, PDIA {
         double[] score = new double[totalLength];
 
         int index = 0;
-        for (SinglePair p : run(init,data)) {
+        for (Pair p : run(init,data)) {
             int[] counts = cMatrix.get(p.state());
             if (counts == null) {
                 counts = new int[nSymbols];
@@ -360,9 +315,6 @@ public class PDIA_Dirichlet implements Serializable, PDIA {
         return score;
     }
 
-    /**
-     * Checks for consistency between the fields rf and dMatrix
-     */
     public void check() {
     	HashMap<Integer, HashMap<Integer, MutableInteger>> dCustomerCounts = new HashMap<Integer, HashMap<Integer, MutableInteger>>();
         int[] context = new int[1];

@@ -47,9 +47,8 @@ public class PDIA_HPYP extends PDIA_Dirichlet {
      * @param data
      * @return The iterator over PDIA
      */
-    public static PDIASample sample(int[] nSymbols, int[][]... data) {
-        assert nSymbols.length == data.length : "Number of data types is inconsistent!";
-        return new PDIASample(new PDIA_HPYP(nSymbols[0]),data);
+    public static PDIASample sample(int nSymbols, int[][] data) {
+        return new PDIASample(new PDIA_HPYP(nSymbols),data);
     }
 
     /**
@@ -61,7 +60,7 @@ public class PDIA_HPYP extends PDIA_Dirichlet {
      * @param data
      * @return An array of posterior samples from the Markov chain
      */
-    public static PDIA_HPYP[] sample(int burnIn, int interval, int samples, int[] nSymbols, int[][]... data) {
+    public static PDIA_HPYP[] sample(int burnIn, int interval, int samples, int nSymbols, int[][] data) {
         PDIA_HPYP[] ps = new PDIA_HPYP[samples];
         int i = 0;
         for (PDIA p : PDIA_HPYP.sample(nSymbols,data)) {
@@ -95,7 +94,7 @@ public class PDIA_HPYP extends PDIA_Dirichlet {
         emitRF = new RestaurantFranchise(nSymbols);
         emitRF.concentrations = emitC;
         emitRF.discounts      = emitD;
-        for (SinglePair p : run(data)) {
+        for (Pair p : run(data)) {
             emitRF.seat(p.symbol(0), new int[]{p.state()});
         }
         logLike = logLik();
@@ -204,7 +203,7 @@ public class PDIA_HPYP extends PDIA_Dirichlet {
         double[] score = new double[totalLength];
 
         int index = 0;
-        for (SinglePair p : run(init,data)) {
+        for (Pair p : run(init,data)) {
             score[(index++)] = emitRF.predictiveProbability(p.symbol(0), new int[]{p.state()});
             emitRF.seat(p.symbol(0), new int[]{p.state()});
         }

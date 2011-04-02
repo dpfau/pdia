@@ -27,7 +27,7 @@ public class PDIASample implements Serializable, Iterable<PDIA>, Iterator<PDIA> 
         score = pdia.jointScore();
     }
 
-    public PDIASample(PDIA_Dirichlet p, int[][]... data) {
+    public PDIASample(PDIA p, int[][]... data) {
         pdia = p;
         this.data = data;
         pdia.count(data);
