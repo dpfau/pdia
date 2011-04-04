@@ -12,15 +12,17 @@ import org.apache.commons.math.special.Gamma;
  * Implements a PDIA to learn a Directed Markov Model, in the sense of
  * "Constructing States for Reinforcement Learning" MM Mahmud, ICML 2010
  *
- * When passing data, it is assumed that the first array
+ * When passing data, it is assumed that the first array is actions, second is
+ * observations, and third is rewards
  * @author David Pfau, 2011
  */
 public class PDIA_DMM implements Serializable, PDIA {
 
     protected RestaurantFranchise rf;
     protected HashMap<MultiPair, Integer> dMatrix;
-    protected HashMap<SinglePair, int[]> cMatrix; // the number of times a given reward is observed following a given state and action
-                                             // the first index of the key is the state, the second is the action
+    protected HashMap<SinglePair, int[][]> cMatrix; // the number of times a given reward is observed following a given state and action
+                                                    // the first index of the key is the state, the second is the action
+                                                    // the first index of the value is the observation, the second is the reward
     protected int[] nSymbols;
     protected double beta;
     protected double logLike;
@@ -28,6 +30,7 @@ public class PDIA_DMM implements Serializable, PDIA {
     private static final long serialVersionUID = 1L;
 
     public PDIA_DMM(int[] n) {
+        assert n.length == 3 : "Need size of action, observation, and reward space.";
         rf = new RestaurantFranchise(1);
         nSymbols = n;
         dMatrix = new HashMap<MultiPair, Integer>();
@@ -35,10 +38,12 @@ public class PDIA_DMM implements Serializable, PDIA {
     }
 
     public PDIASequence run(int[][]... data) {
+        assert data.length == 3 : "Need actions, observations and rewards.";
         return new PDIASequence(this,0,data);
     }
 
     public PDIASequence run(int init, int[][]... data) {
+        assert data.length == 3 : "Need actions, observations and rewards";
         return new PDIASequence(this,init,data);
     }
 
@@ -119,21 +124,23 @@ public class PDIA_DMM implements Serializable, PDIA {
      * @return
      */
     public Integer transition(int state, int[] symbol) {
-        assert symbol.length == nSymbols.length - 1; // check to make sure we're leaving out the reward when transitioning
+        assert symbol.length == 2; // check to make sure we're leaving out the reward when transitioning
         return dMatrix.get(new MultiPair(state,symbol));
     }
 
+    public Integer transition(int state, int action, int observation) {
+        return dMatrix.get(new MultiPair(state, new int[]{action, observation}));
+    }
+
     public Integer transition(Pair p) {
-        int[] symbols = new int[nSymbols.length - 1];
-        System.arraycopy(p.symbol(),0,symbols,0,symbols.length);
+        int[] symbols = new int[]{p.symbol(0),p.symbol(1)};
         return dMatrix.get(new MultiPair(p.state(),symbols));
     }
 
     public Integer transitionAndAdd(Pair p) {
         Integer state = transition(p);
         if (state == null) {
-            int[] context = new int[nSymbols.length - 1];
-            System.arraycopy(p.symbol(),0,context,0,context.length);
+            int[] context = new int[]{p.symbol(0),p.symbol(1)};
             state = rf.generate(context);
             rf.seat(state, context);
             dMatrix.put(new MultiPair(p.state(),context), state);
@@ -142,16 +149,18 @@ public class PDIA_DMM implements Serializable, PDIA {
     }
 
     public void count(int[][]... data) {
-        int r = nSymbols.length - 1;
-        cMatrix = new HashMap<SinglePair, int[]>();
+        cMatrix = new HashMap<SinglePair, int[][]>();
         for (Pair p : run(data)) {
             SinglePair sa = new SinglePair(p.state(),p.symbol(0)); // state/action pair
-            int[] counts = cMatrix.get(new SinglePair(p.state(),p.symbol(0)));
+            int[][] counts = cMatrix.get(new SinglePair(p.state(),p.symbol(0)));
             if (counts == null) {
-                counts = new int[nSymbols[r]];
+                counts = new int[nSymbols[1]][];
                 cMatrix.put(sa, counts);
             }
-            counts[p.symbol(r)] ++;
+            if (counts[p.symbol(1)] == null) {
+                counts[p.symbol(1)] = new int[nSymbols[2]];
+            }
+            counts[p.symbol(1)][p.symbol(2)] ++;
         }
         logLike = logLik();
     }
@@ -166,13 +175,15 @@ public class PDIA_DMM implements Serializable, PDIA {
         double bn = beta / nSymbols[nSymbols.length - 1];
         double lgbn = Gamma.logGamma(bn);
 
-        for (int[] arr : cMatrix.values()) {
-            for (int count : arr) {
-                if (count != 0) {
-                    logLik += Gamma.logGamma(count + bn) - lgbn;
+        for (int[][] arr : cMatrix.values()) {
+            int[] counts = new int[arr.length];
+            for (int i = 0; i < arr.length; i++) {
+                counts[i] = Util.sum(arr[i]);
+                if (counts[i] != 0) {
+                    logLik += Gamma.logGamma(counts[i] + bn) - lgbn;
                 }
             }
-            logLik -= Gamma.logGamma(Util.sum(arr) + beta) - lgb;
+            logLik -= Gamma.logGamma(Util.sum(counts) + beta) - lgb;
         }
 
         return logLik;
@@ -231,17 +242,17 @@ public class PDIA_DMM implements Serializable, PDIA {
 
         rf.unseat(currentType, context);
         Integer proposedType = rf.generate(context);
-        rf.seat(proposedType, context);
+        rf.seat(currentType, context);
         dMatrix.put(p, proposedType);
 
-        HashMap<SinglePair, int[]> oldCounts = (HashMap<SinglePair,int[]>)Util.intArrayMapCopy(cMatrix);
+        HashMap<SinglePair, int[][]> oldCounts = (HashMap<SinglePair,int[][]>)Util.intTwoDArrayMapCopy(cMatrix);
         count(data);
         double pLogLik = logLik();
 
         if (Math.log(RNG.nextDouble()) < pLogLik - cLogLik) { // accept
+            rf.unseat(currentType, context);
+            rf.seat(proposedType, context);
         } else { // reject
-            rf.unseat(proposedType, context);
-            rf.seat(currentType, context);
             cMatrix = oldCounts;
             logLike = cLogLik;
             dMatrix.put(p, currentType);
@@ -251,28 +262,29 @@ public class PDIA_DMM implements Serializable, PDIA {
     /**
      * After sampling, clears out state/symbol pairs for which there are no observed data
      */
-    /*private void fixDMatrix() {
-        HashSet<SinglePair> keysToDiscard = new HashSet<SinglePair>();
+    private void fixDMatrix() {
+        HashSet<MultiPair> keysToDiscard = new HashSet<MultiPair>();
 
         for (MultiPair p : dMatrix.keySet()) {
-            SinglePair sp = p.toSingle();
-            int[] counts = cMatrix.get(sp);
-            if ((counts == null) || (counts[p.symbol(0)] == 0)) {
-                keysToDiscard.add(sp);
+            int[][] counts = cMatrix.get(p.toSingle());
+            if (counts == null || counts[p.symbol(1)] == null || counts[p.symbol(1)][p.symbol(2)] == 0) {
+                keysToDiscard.add(p);
             }
         }
 
-        int[] context = new int[1];
-        for (SinglePair p : keysToDiscard) {
+        int[] context = new int[2];
+        for (MultiPair p : keysToDiscard) {
             context[0] = p.symbol(0);
+            context[1] = p.symbol(1);
             rf.unseat(dMatrix.get(p), context);
             dMatrix.remove(p);
         }
-    }*/
+    }
 
     public double[] score(int init, int[][]... data) {
         int totalLength = 0;
-        int nRewards = nSymbols[nSymbols.length - 1];
+        int no = nSymbols[1];
+        int nr = nSymbols[2];
         for (int i = 0; i < data[0].length; i++) {
             totalLength += data[0][i].length;
         }
@@ -282,15 +294,18 @@ public class PDIA_DMM implements Serializable, PDIA {
         int index = 0;
         for (Pair p : run(init,data)) {
             MultiPair mp = (MultiPair)p;
-            int[] counts = cMatrix.get(mp.toSingle());
+            int[][] counts = cMatrix.get(mp.toSingle());
             if (counts == null) {
-                counts = new int[nRewards];
+                counts = new int[no][];
                 cMatrix.put(mp.toSingle(),counts);
             }
+            if (counts[mp.symbol(1)] == null) {
+                counts[mp.symbol(1)] = new int[nr];
+            }
 
-            int totalCount = Util.sum(counts);
-            score[(index++)] = ((counts[p.symbol(0)] + beta / nRewards) / (totalCount + beta));
-            counts[p.symbol(0)]++;
+            double totalCount = Util.sum(counts);
+            score[(index++)] = ((counts[mp.symbol(1)][mp.symbol(2)] + beta / nr) / (totalCount + beta));
+            counts[mp.symbol(1)][mp.symbol(2)]++;
         }
 
         return score;
@@ -321,17 +336,17 @@ public class PDIA_DMM implements Serializable, PDIA {
         return score;
     }
 
+    // Use with caution, I haven't checked this
     public void check() {
-    	HashMap<Integer, HashMap<Integer, MutableInteger>> dCustomerCounts = new HashMap<Integer, HashMap<Integer, MutableInteger>>();
-        int[] context = new int[1];
+    	HashMap<int[], HashMap<Integer, MutableInteger>> dCustomerCounts = new HashMap<int[], HashMap<Integer, MutableInteger>>();
 
         for (MultiPair p : dMatrix.keySet()) {
-            context[0] = p.symbol(0);
+            int[] context = p.symbol();
 
-            HashMap<Integer, MutableInteger> typeCountMap = dCustomerCounts.get(p.symbol(0));
+            HashMap<Integer, MutableInteger> typeCountMap = dCustomerCounts.get(context);
             if (typeCountMap == null) {
                 typeCountMap = new HashMap<Integer, MutableInteger>();
-                dCustomerCounts.put(p.symbol(0), typeCountMap);
+                dCustomerCounts.put(context, typeCountMap);
             }
 
             Integer tKey = dMatrix.get(p);
@@ -346,11 +361,14 @@ public class PDIA_DMM implements Serializable, PDIA {
         }
 
         int[] tCounts = new int[2];
-        for (int i = 0; i < nSymbols; i++) {
-            HashMap<Integer, MutableInteger> hm = dCustomerCounts.get(i);
-            for (Integer type : hm.keySet()) {
-                rf.get(context).getCounts(type.intValue(), tCounts);
-                assert (tCounts[0] == hm.get(type).intVal());
+        for (int i = 0; i < nSymbols[0]; i++) {
+            for (int j = 0; j < nSymbols[1]; j++) {
+                int[] context = new int[]{i,j};
+                HashMap<Integer, MutableInteger> hm = dCustomerCounts.get(context);
+                for (Integer type : hm.keySet()) {
+                    rf.get(context).getCounts(type.intValue(), tCounts);
+                    assert (tCounts[0] == hm.get(type).intVal());
+                }
             }
         }
     }

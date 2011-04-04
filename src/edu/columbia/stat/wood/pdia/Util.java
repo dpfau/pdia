@@ -61,6 +61,28 @@ public class Util {
         return copy;
     }
 
+    // OK, this is getting slightly ridiculous, but so it goes.
+    public static <E> Map<E,int[][]> intTwoDArrayMapCopy(Map<E,int[][]> map) {
+        Map<E,int[][]> copy = null;
+        if (map instanceof HashMap) {
+            copy = new HashMap<E,int[][]>();
+        } else if (map instanceof TreeMap) {
+            copy = new TreeMap<E,int[][]>();
+        }
+        for (E e : map.keySet()) {
+            int[][] cts = map.get(e);
+            int[][] cpy = new int[cts.length][];
+            for (int i = 0; i < cts.length; i++) {
+                if (cts[i] != null) {
+                    cpy[i] = new int[cts[i].length];
+                    System.arraycopy(cts[i],0,cpy[i],0,cts[i].length);
+                }
+            }
+            copy.put(e,cpy);
+        }
+        return copy;
+    }
+
     // JHH: updated this to be more efficient; it now runs in O(n) time
     public static int[] randPermute(int n) {
     	int[] order = new int[n];
@@ -94,16 +116,43 @@ public class Util {
 
     public static int sum(int[] arr) {
         int s = 0;
-        for (int i = 0; i < arr.length; i++) {
-            s += arr[i];
+        if (arr != null) {
+            for (int i = 0; i < arr.length; i++) {
+                s += arr[i];
+            }
         }
         return s;
     }
 
     public static double sum(double[] arr) {
         double s = 0;
-        for (int i = 0; i < arr.length; i++) {
-            s += arr[i];
+        if (arr != null) {
+            for (int i = 0; i < arr.length; i++) {
+                s += arr[i];
+            }
+        }
+        return s;
+    }
+
+    public static <E> double sum(E arr) {
+        double s = 0;
+        if (arr != null) {
+            if (arr instanceof int[]) {
+                int[] a = (int[])arr;
+                for (int i = 0; i < a.length; i++) {
+                    s += a[i];
+                }
+            } else if (arr instanceof double[]) {
+                double[] a = (double[])arr;
+                for (int i = 0; i < a.length; i++) {
+                    s += a[i];
+                }
+            } else if (arr instanceof Object[]) {
+                Object[] a = (Object[])arr;
+                for (int i = 0; i < a.length; i++) {
+                    s += sum(a[i]);
+                }
+            }
         }
         return s;
     }

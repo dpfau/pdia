@@ -142,7 +142,7 @@ public class PDIA_HPYP extends PDIA_Dirichlet {
 
         rf.unseat(currentType, context);
         Integer proposedType = rf.generate(context);
-        rf.seat(proposedType, context);
+        rf.seat(currentType, context);
         dMatrix.put(p, proposedType);
 
         RestaurantFranchise oldEmitRF = Util.<RestaurantFranchise>copy(emitRF); // probably slow, should replace with its own deep copy method if significat
@@ -150,9 +150,9 @@ public class PDIA_HPYP extends PDIA_Dirichlet {
         double pLogLik = logLik();
 
         if (Math.log(RNG.nextDouble()) < pLogLik - cLogLik) { // accept
+            rf.unseat(currentType, context);
+            rf.seat(proposedType, context);
         } else { // reject
-            rf.unseat(proposedType, context);
-            rf.seat(currentType, context);
             emitRF = oldEmitRF;
             logLike = cLogLik;
             dMatrix.put(p, currentType);

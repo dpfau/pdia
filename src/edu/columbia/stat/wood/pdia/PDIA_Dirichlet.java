@@ -228,7 +228,7 @@ public class PDIA_Dirichlet implements Serializable, PDIA {
 
         rf.unseat(currentType, context);
         Integer proposedType = rf.generate(context);
-        rf.seat(proposedType, context);
+        rf.seat(currentType, context);
         dMatrix.put(p, proposedType);
 
         HashMap<Integer, int[]> oldCounts = (HashMap<Integer,int[]>)Util.intArrayMapCopy(cMatrix);
@@ -236,9 +236,9 @@ public class PDIA_Dirichlet implements Serializable, PDIA {
         double pLogLik = logLik();
 
         if (Math.log(RNG.nextDouble()) < pLogLik - cLogLik) { // accept
+            rf.unseat(currentType, context);
+            rf.seat(proposedType, context);
         } else { // reject
-            rf.unseat(proposedType, context);
-            rf.seat(currentType, context);
             cMatrix = oldCounts;
             logLike = cLogLik;
             dMatrix.put(p, currentType);
@@ -342,6 +342,7 @@ public class PDIA_Dirichlet implements Serializable, PDIA {
         int[] tCounts = new int[2];
         for (int i = 0; i < nSymbols; i++) {
             HashMap<Integer, MutableInteger> hm = dCustomerCounts.get(i);
+            context[0] = i;
             for (Integer type : hm.keySet()) {
                 rf.get(context).getCounts(type.intValue(), tCounts);
                 assert (tCounts[0] == hm.get(type).intVal());
