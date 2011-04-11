@@ -1,11 +1,11 @@
+package edu.columbia.stat.wood.pdia;
+
 /*
  * To change this template, choose Tools | Templates
  * and open the template in the editor.
  */
-package edu.columbia.stat.wood.pdia;
 
-import edu.columbia.stat.wood.hpyp.RestaurantFranchise;
-import java.io.EOFException;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.ObjectInputStream;
