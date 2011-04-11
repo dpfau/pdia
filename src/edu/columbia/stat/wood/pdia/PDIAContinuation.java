@@ -59,7 +59,10 @@ public class PDIAContinuation implements Serializable, Iterable<SinglePair>, Ite
             }
             double samp = cuSum[pdia.nSymbols-1] * PDIA_Dirichlet.RNG.nextDouble();
             for (int i = 0; i < pdia.nSymbols; i++) {
-                if (cuSum[i] >= samp) symbol = i;
+                if (cuSum[i] >= samp) {
+                    symbol = i;
+                    break;
+                }
             }
         }
 

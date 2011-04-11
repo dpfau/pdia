@@ -267,7 +267,7 @@ public class PDIA_DMM implements Serializable, PDIA {
 
         for (MultiPair p : dMatrix.keySet()) {
             int[][] counts = cMatrix.get(p.toSingle());
-            if (counts == null || counts[p.symbol(1)] == null || counts[p.symbol(1)][p.symbol(2)] == 0) {
+            if (counts == null || counts[p.symbol(0)] == null || counts[p.symbol(0)][p.symbol(1)] == 0) {
                 keysToDiscard.add(p);
             }
         }
@@ -320,12 +320,12 @@ public class PDIA_DMM implements Serializable, PDIA {
      * @param data
      * @return
      */
-    public static double[] score(PDIA_Dirichlet[] ps, int init, int[][]... data) {
+    public static double[] score(PDIA_DMM[] ps, int init, int[][]... data) {
         int n = 10;
         double[] score = new double[Util.totalLen(data[0])];
-        for (PDIA_Dirichlet pdia : ps) {
+        for (PDIA_DMM pdia : ps) {
             for (int i = 0; i < n; i++) {
-                PDIA_Dirichlet copy = Util.<PDIA_Dirichlet>copy(pdia);
+                PDIA_DMM copy = Util.copy(pdia);
                 Util.addArrays(score, copy.score(init, data));
             }
         }
