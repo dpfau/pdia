@@ -80,6 +80,15 @@ public class PDIA_Dirichlet implements Serializable, PDIA {
         return new PDIASample(nSymbols,data);
     }
 
+    // Same but for Object arrays, because fsck Matlab
+    public static PDIASample sample(int nSymbols, Object[] data) {
+        int[][] castData = new int[data.length][];
+        for (int i = 0; i < data.length; i++) {
+            castData[i] = (int[])data[i];
+        }
+        return new PDIASample(nSymbols,castData);
+    }
+
     /**
      * Runs an MCMC sampler a specified number of times, saving samples along the way
      * @param burnIn Number of burn in samples

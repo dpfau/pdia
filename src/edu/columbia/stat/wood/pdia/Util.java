@@ -233,6 +233,16 @@ public class Util {
         return data;
     }
 
+    /**
+     * Assign an array into a larger ragged array
+     * @param array ragged array you're building
+     * @param i index into array
+     * @param subarray this gets autoboxed to int[] from Matlab
+     */
+    public static void assignIntArray(Object[] array, int i, int[] subarray) {
+        array[i] = subarray;
+    }
+
     /*public static int[][] loadTokens(String path) {
 
     }*/

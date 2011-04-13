@@ -19,7 +19,7 @@ public class BaseRestaurant extends Restaurant implements Serializable {
     public BaseRestaurant() {
         customers = 0;
         alphabetSize = -1;
-        lambda = 0.001;
+        lambda = 0.00001;
     }
 
     public void set(int cust) {
