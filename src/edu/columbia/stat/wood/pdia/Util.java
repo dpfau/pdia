@@ -242,6 +242,14 @@ public class Util {
     public static void assignIntArray(Object[] array, int i, int[] subarray) {
         array[i] = subarray;
     }
+    
+    public static int[][] objectArrayTo2DIntArray(Object[] data) {
+    	int[][] castData = new int[data.length][];
+    	for (int i = 0; i < data.length; i++) {
+    		castData[i] = (int[])data[i];
+    	}
+    	return castData;
+    }
 
     /*public static int[][] loadTokens(String path) {
 
