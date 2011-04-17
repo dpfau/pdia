@@ -84,9 +84,14 @@ public class PDIA_Dirichlet implements Serializable, PDIA {
     public static PDIASample sample(int nSymbols, Object[] data) {
         return new PDIASample(nSymbols, Util.objectArrayTo2DIntArray(data));
     }
+    
+    public static PDIA_Dirichlet[] sample(int burnIn, int interval, int samples, int nSymbols, int[][] data) {
+    	return sample(burnIn, interval, samples, nSymbols, data, null, 0);
+    }
 
     /**
      * Runs an MCMC sampler a specified number of times, saving samples along the way
+     * 
      * @param burnIn Number of burn in samples
      * @param interval Number of samples between saves
      * @param samples Number of saved samples
@@ -94,7 +99,7 @@ public class PDIA_Dirichlet implements Serializable, PDIA {
      * @param data
      * @return An array of posterior samples from the Markov chain
      */
-    public static PDIA_Dirichlet[] sample(int burnIn, int interval, int samples, int nSymbols, int[][] data) {
+    public static PDIA_Dirichlet[] sample(int burnIn, int interval, int samples, int nSymbols, int[][] data, SamplerUpdateHandler h, int updateInterval) {
         PDIA_Dirichlet[] ps = new PDIA_Dirichlet[samples];
         int i = 0;
         for (PDIA p : PDIA_Dirichlet.sample(nSymbols,data)) {
@@ -104,6 +109,9 @@ public class PDIA_Dirichlet implements Serializable, PDIA {
             if (i >= burnIn && (i-burnIn) % interval == 0) {
                 ps[(i-burnIn)/interval] = (PDIA_Dirichlet)Util.copy(p);
                 System.out.println("Wrote sample " + ((i-burnIn)/interval+1) + " of " + samples);
+            }
+            if (h != null && i >= burnIn && (i-burnIn) % updateInterval == 0) {
+               h.update(ps, (i - burnIn)/interval);
             }
             i++;
             if (i == burnIn + interval*samples) break;
@@ -115,6 +123,13 @@ public class PDIA_Dirichlet implements Serializable, PDIA {
     public static PDIA_Dirichlet[] sample(int burnIn, int interval, int samples, int nSymbols, Object[] data) {
         return sample(burnIn, interval, samples, nSymbols, Util.objectArrayTo2DIntArray(data));
     }
+    
+    
+    // Same but for Object arrays, because fsck Matlab
+    public static PDIA_Dirichlet[] sample(int burnIn, int interval, int samples, int nSymbols, Object[] data, SamplerUpdateHandler h, int updateInterval) {
+        return sample(burnIn, interval, samples, nSymbols, Util.objectArrayTo2DIntArray(data), h, updateInterval);
+    }
+    
     
     public int states() { return cMatrix.size(); }
 
