@@ -5,6 +5,7 @@ import edu.columbia.stat.wood.hpyp.Discounts;
 import edu.columbia.stat.wood.hpyp.Restaurant;
 import edu.columbia.stat.wood.hpyp.RestaurantFranchise;
 import java.util.HashSet;
+import java.util.Set;
 
 /**
  * A modified version of PDIA where the emission distributions are sampled from an HPYP instead of iid Dirichlet
@@ -19,7 +20,7 @@ public class PDIA_HPYP extends PDIA_Dirichlet {
 
     public PDIA_HPYP(int n) {
         super(n);
-        emitRF = new RestaurantFranchise(n);
+        emitRF = new RestaurantFranchise(1);
         emitD = emitRF.discounts;
         emitC = emitRF.concentrations;
     }
@@ -77,12 +78,8 @@ public class PDIA_HPYP extends PDIA_Dirichlet {
         return ps;
     }
 
-    /**
-     * @param return The number of states the data visits.
-     * Depends on the most recent int[][] data on which count(data) was called.
-     */
     @Override
-    public int states() { return emitRF.get(null).size(); }
+    public Set<Integer> states() { return emitRF.get(null).keySet(); }
 
     /**
      * Runs over all the data, filling in an HPYP where each restaurant

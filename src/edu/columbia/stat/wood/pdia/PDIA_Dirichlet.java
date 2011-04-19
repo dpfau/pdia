@@ -6,6 +6,7 @@ import java.io.Serializable;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Random;
+import java.util.Set;
 import org.apache.commons.math.special.Gamma;
 
 /**
@@ -131,7 +132,7 @@ public class PDIA_Dirichlet implements Serializable, PDIA {
     }
     
     
-    public int states() { return cMatrix.size(); }
+    public Set<Integer> states() { return cMatrix.keySet(); }
 
     /**
      * @return A deterministic map from state/symbol pairs to next states.

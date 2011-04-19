@@ -5,6 +5,8 @@
 
 package edu.columbia.stat.wood.pdia;
 
+import java.util.Set;
+
 /**
  *
  * @author davidpfau
@@ -69,10 +71,10 @@ public interface PDIA {
     public double logLik();
 
     /**
-     * @param return The number of states the data visits.
+     * @param return The set of states which the data visits
      * Depends on the most recent int[][] data on which count(data) was called.
      */
-    public int states();
+    public Set<Integer> states();
 
     /**
      * Returns an array that gives the predictive probability of each data point,

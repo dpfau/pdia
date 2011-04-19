@@ -7,6 +7,7 @@ import java.io.Serializable;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Random;
+import java.util.Set;
 import org.apache.commons.math.special.Gamma;
 /**
  * Implements a PDIA to learn a Directed Markov Model, in the sense of
@@ -125,7 +126,13 @@ public class PDIA_DMM implements Serializable, PDIA {
         return ps;
     }
 
-    public int states() { return cMatrix.size(); }
+    public Set<Integer> states() {
+        HashSet<Integer> states = new HashSet<Integer>();
+        for (SinglePair p : cMatrix.keySet()) {
+            states.add(p.state());
+        }
+        return states;
+    }
 
     /**
      * @return A deterministic map from state/symbol pairs to next states.
