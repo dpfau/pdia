@@ -28,3 +28,8 @@ for i = 1:numel(data)
     edu.columbia.stat.wood.pdia.Util.assignIntArray(ja, i-1, data{i});
 end
 sampler = edu.columbia.stat.wood.pdia.PDIA_Dirichlet.sample(nSymb,ja);
+
+for i = 1:samples
+    sampler.next();
+    pdias(i) = sampler.pdia;
+end

@@ -82,6 +82,23 @@ public class PDIA_DMM implements Serializable, PDIA {
         return new PDIASample(new PDIA_DMM(nSymbols),data);
     }
 
+    //Hacked version of the above to make Matlab scripts work
+    public static PDIASample sample(int[] nSymbols, Object[] action, Object[] observation, Object[] reward) {
+        int[][] castAct = new int[action.length][];
+        for (int i = 0; i < action.length; i++) {
+            castAct[i] = (int[])action[i];
+        }        
+        int[][] castObs = new int[observation.length][];
+        for (int i = 0; i < action.length; i++) {
+            castObs[i] = (int[])observation[i];
+        }        
+        int[][] castRew = new int[reward.length][];
+        for (int i = 0; i < action.length; i++) {
+            castRew[i] = (int[])reward[i];
+        }
+        return new PDIASample(new PDIA_DMM(nSymbols),castAct,castObs,castRew);
+    }
+
     /**
      * Runs an MCMC sampler a specified number of times, saving samples along the way
      * @param burnIn Number of burn in samples
