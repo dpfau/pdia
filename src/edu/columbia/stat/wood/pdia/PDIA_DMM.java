@@ -149,6 +149,21 @@ public class PDIA_DMM implements Serializable, PDIA {
         return dMatrix.get(new MultiPair(state, new int[]{action, observation}));
     }
 
+    /**
+     * Given a state and action, returns a 2D array of counts of how many times
+     * the observation/reward pair is observed in that context.
+     * if int[][] counts = observationAndReward(s,a), then counts[o][r] is the
+     * number of times the observation o and reward r occur after taking action
+     * a in state s.  Note that counts[o] may be null if that observation is
+     * never seen in that particular context.
+     * @param state
+     * @param action
+     * @return
+     */
+    public int[][] observationAndReward(int state, int action) {
+        return cMatrix.get(new SinglePair(state,action));
+    }
+
     public Integer transition(Pair p) {
         int[] symbols = new int[]{p.symbol(0),p.symbol(1)};
         return dMatrix.get(new MultiPair(p.state(),symbols));
