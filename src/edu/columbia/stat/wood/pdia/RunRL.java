@@ -26,7 +26,7 @@ public class RunRL {
 		try {
 			oos = new ObjectOutputStream(new GZIPOutputStream(new FileOutputStream(objs)));
 
-			PDIA_DMM[] pdias = PDIA_DMM.sample(Integer.parseInt(args[1]), 5, Integer.parseInt(args[2]), new int[]{actions.size(),observations.size(),rewards.size()}, train_a, train_o, train_r);
+			PDIA_DMM[] pdias = PDIA_DMM.sample(Integer.parseInt(args[1]), 5, Integer.parseInt(args[2]), new int[]{actions.size()-1,observations.size()-1,rewards.size()-1}, train_a, train_o, train_r);
 			for (PDIA_DMM pdia : pdias) {
 				double[] score = PDIA_DMM.score(new PDIA_DMM[]{pdia}, 0, test_a, test_o, test_r);
 				System.out.println("SingleMachinePrediction = " + Util.scoreToLogLoss(score));

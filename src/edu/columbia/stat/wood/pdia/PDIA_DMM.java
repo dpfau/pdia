@@ -284,7 +284,7 @@ public class PDIA_DMM implements Serializable, PDIA {
 
         for (MultiPair p : dMatrix.keySet()) {
             int[][] counts = cMatrix.get(p.toSingle());
-            if (counts == null || counts[p.symbol(0)] == null || counts[p.symbol(0)][p.symbol(1)] == 0) {
+            if (counts == null || counts[p.symbol(1)] == null || Util.sum(counts[p.symbol(1)]) == 0) {
                 keysToDiscard.add(p);
             }
         }

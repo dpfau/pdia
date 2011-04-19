@@ -309,4 +309,33 @@ public class RestaurantFranchise implements Serializable {
         r.printTableMap();
         System.out.println();
     }
+
+    // These three methods are to help debug PDIA_DMM, which seems to have some issues with empty restaurants
+    public int tablesByType(int[] context) {
+        Restaurant r = getDontAdd(context);
+        if (r == null) {
+            return -1;
+        } else {
+            return r.tableMap.size();
+        }
+    }
+
+    public void tablesByType() {
+        int[] context = new int[depth];
+        for (int i = 0; i < depth; i++) context[i] = -1;
+        tablesByType(root,context,0);
+        System.out.println("");
+    }
+
+    public void tablesByType(Restaurant r, int[] context, int d) {
+        for (int i = 0; i < d; i++) System.out.print(context[i] + ", ");
+        System.out.println(" -> " + r.tableMap.size());
+        if (d < depth) {
+            for (Integer i : r.keySet()) {
+                context[d] = i;
+                tablesByType(r.get(i),context,d+1);
+            }
+            context[d] = -1;
+        }
+    }
 }
