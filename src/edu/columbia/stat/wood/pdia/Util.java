@@ -18,6 +18,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.concurrent.atomic.AtomicIntegerArray;
 
 /**
  *
@@ -56,6 +57,24 @@ public class Util {
             int[] cts = map.get(e);
             int[] cpy = new int[cts.length];
             System.arraycopy(cts,0,cpy,0,cts.length);
+            copy.put(e,cpy);
+        }
+        return copy;
+    }
+
+    public static <E> Map<E,AtomicIntegerArray> atomicIntArrayMapCopy(Map<E,AtomicIntegerArray> map) {
+        Map<E,AtomicIntegerArray> copy = null;
+        if (map instanceof HashMap) {
+            copy = new HashMap<E,AtomicIntegerArray>();
+        } else if (map instanceof TreeMap) {
+            copy = new TreeMap<E,AtomicIntegerArray>();
+        }
+        for (E e : map.keySet()) {
+            AtomicIntegerArray cts = map.get(e);
+            AtomicIntegerArray cpy = new AtomicIntegerArray(cts.length());
+            for (int i = 0; i < cts.length(); i++) {
+                cpy.set(i,cts.get(i));
+            }
             copy.put(e,cpy);
         }
         return copy;
@@ -151,6 +170,11 @@ public class Util {
                 Object[] a = (Object[])arr;
                 for (int i = 0; i < a.length; i++) {
                     s += sum(a[i]);
+                }
+            } else if (arr instanceof AtomicIntegerArray) {
+                AtomicIntegerArray a = (AtomicIntegerArray)arr;
+                for (int i = 0; i < a.length(); i++) {
+                    s += a.get(i);
                 }
             }
         }

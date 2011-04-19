@@ -12,8 +12,8 @@ public class Main {
 		
 		ObjectOutputStream oos = null;
 		HashMap<Integer,Integer> alphabet  = new HashMap<Integer,Integer>();
-		int[][] train = Util.loadText(args[0] + "data/aiw_full.train", alphabet);
-		int[][] test = Util.loadText(args[0] + "data/aiw_full.train", alphabet);
+		int[][] train = Util.loadText(args[0] + "data/aiw.train", alphabet);
+		int[][] test = Util.loadText(args[0] + "data/aiw.train", alphabet);
 
 		try {
 			oos = new ObjectOutputStream(new GZIPOutputStream(new FileOutputStream(objs)));

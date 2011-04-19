@@ -31,7 +31,7 @@ public class PDIA_DMM implements Serializable, PDIA {
 
     public PDIA_DMM(int[] n) {
         assert n.length == 3 : "Need size of action, observation, and reward space.";
-        rf = new RestaurantFranchise(1);
+        rf = new RestaurantFranchise(2);
         nSymbols = n;
         dMatrix = new HashMap<MultiPair, Integer>();
         beta = 10.0;

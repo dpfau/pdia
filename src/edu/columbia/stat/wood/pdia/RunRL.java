@@ -14,14 +14,14 @@ public class RunRL {
 		HashMap<Integer,Integer> actions      = new HashMap<Integer,Integer>();
 		HashMap<Integer,Integer> observations = new HashMap<Integer,Integer>();
 		HashMap<Integer,Integer> rewards      = new HashMap<Integer,Integer>();
-		int[][] train_a = Util.loadText(args[0] + "RL/linworld.a", actions);
-		int[][] test_a = Util.loadText(args[0] + "RL/linworld2.a", actions);
+		int[][] train_a = Util.loadText(args[0] + "data/linworld.a", actions);
+		int[][] test_a = Util.loadText(args[0] + "data/linworld2.a", actions);
 
-                int[][] train_o = Util.loadText(args[0] + "RL/linworld.o", observations);
-		int[][] test_o = Util.loadText(args[0] + "RL/linworld2.o", observations);
+                int[][] train_o = Util.loadText(args[0] + "data/linworld.o", observations);
+		int[][] test_o = Util.loadText(args[0] + "data/linworld2.o", observations);
 
-		int[][] train_r = Util.loadText(args[0] + "RL/linworld.r", rewards);
-		int[][] test_r = Util.loadText(args[0] + "RL/linworld2.r", rewards);
+		int[][] train_r = Util.loadText(args[0] + "data/linworld.r", rewards);
+		int[][] test_r = Util.loadText(args[0] + "data/linworld2.r", rewards);
 
 		try {
 			oos = new ObjectOutputStream(new GZIPOutputStream(new FileOutputStream(objs)));
