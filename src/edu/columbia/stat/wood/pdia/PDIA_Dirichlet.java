@@ -110,8 +110,8 @@ public class PDIA_Dirichlet implements Serializable, PDIA {
                 ps[(i-burnIn)/interval] = (PDIA_Dirichlet)Util.copy(p);
                 System.out.println("Wrote sample " + ((i-burnIn)/interval+1) + " of " + samples);
             }
-            if (h != null && i >= burnIn && (i-burnIn) % updateInterval == 0) {
-               h.update(ps, (i - burnIn)/interval);
+            if (h != null && i > burnIn && (i-burnIn) % (updateInterval*interval) == 0) {
+               h.update(ps, (i - burnIn)/interval+1);
             }
             i++;
             if (i == burnIn + interval*samples) break;

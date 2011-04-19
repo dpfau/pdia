@@ -30,6 +30,7 @@ public class SaveSamplesHandler implements SamplerUpdateHandler {
 	 * @see edu.columbia.stat.wood.pdia.SamplerUpdateHandler#update(edu.columbia.stat.wood.pdia.PDIA[], int)
 	 */
 	public void update(PDIA[] pdias, int count) {
+		System.out.println("Saving " + count + " PDIAs to disk");
 		ObjectOutputStream oos = null;
 		try {
 			oos = new ObjectOutputStream(new GZIPOutputStream(new FileOutputStream(saveFile)));
