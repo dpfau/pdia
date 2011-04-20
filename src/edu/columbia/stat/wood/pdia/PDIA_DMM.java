@@ -20,10 +20,9 @@ import org.apache.commons.math.special.Gamma;
 public class PDIA_DMM implements Serializable, PDIA {
 
     protected RestaurantFranchise rf;
-    protected HashMap<MultiPair, Integer> dMatrix;
-    protected HashMap<SinglePair, int[][]> cMatrix; // the number of times a given reward is observed following a given state and action
-                                                    // the first index of the key is the state, the second is the action
-                                                    // the first index of the value is the observation, the second is the reward
+    public HashMap<MultiPair, Integer> dMatrix;
+    public HashMap<SinglePair, int[]> rMatrix; // the number of times a given reward is observed following a given state and action
+    public HashMap<SinglePair, int[]> oMatrix; // the set of action/observation pairs visited by the data, used for clearing unseen transitions
     protected int[] nSymbols;
     protected double beta;
     protected double logLike;
@@ -128,7 +127,7 @@ public class PDIA_DMM implements Serializable, PDIA {
 
     public Set<Integer> states() {
         HashSet<Integer> states = new HashSet<Integer>();
-        for (SinglePair p : cMatrix.keySet()) {
+        for (Pair p : oMatrix.keySet()) {
             states.add(p.state());
         }
         return states;
@@ -157,18 +156,23 @@ public class PDIA_DMM implements Serializable, PDIA {
     }
 
     /**
-     * Given a state and action, returns a 2D array of counts of how many times
-     * the observation/reward pair is observed in that context.
-     * if int[][] counts = observationAndReward(s,a), then counts[o][r] is the
-     * number of times the observation o and reward r occur after taking action
-     * a in state s.  Note that counts[o] may be null if that observation is
-     * never seen in that particular context.
+     * Given a state and action, returns an array of counts for observations seen
      * @param state
      * @param action
      * @return
      */
-    public int[][] observationAndReward(int state, int action) {
-        return cMatrix.get(new SinglePair(state,action));
+    public int[] observation(int state, int action) {
+        return oMatrix.get(new SinglePair(state,action));
+    }
+
+    /**
+     * Given a state and action, returns an array of counts for rewards seen
+     * @param state
+     * @param action
+     * @return
+     */
+    public int[] reward(int state, int action) {
+        return rMatrix.get(new SinglePair(state,action));
     }
 
     public Integer transition(Pair p) {
@@ -188,18 +192,25 @@ public class PDIA_DMM implements Serializable, PDIA {
     }
 
     public void count(int[][]... data) {
-        cMatrix = new HashMap<SinglePair, int[][]>();
+        oMatrix = new HashMap<SinglePair, int[]>();
+        rMatrix = new HashMap<SinglePair, int[]>();
         for (Pair p : run(data)) {
             SinglePair sa = new SinglePair(p.state(),p.symbol(0)); // state/action pair
-            int[][] counts = cMatrix.get(new SinglePair(p.state(),p.symbol(0)));
-            if (counts == null) {
-                counts = new int[nSymbols[1]][];
-                cMatrix.put(sa, counts);
+            
+            int[] oCounts = oMatrix.get(sa);
+            if (oCounts == null) {
+                oCounts = new int[nSymbols[1]];
+                oMatrix.put(sa, oCounts);
             }
-            if (counts[p.symbol(1)] == null) {
-                counts[p.symbol(1)] = new int[nSymbols[2]];
+            
+            int[] rCounts = rMatrix.get(sa);
+            if (rCounts == null) {
+                rCounts = new int[nSymbols[2]];
+                rMatrix.put(sa, rCounts);
             }
-            counts[p.symbol(1)][p.symbol(2)] ++;
+
+            oCounts[p.symbol(1)] ++;
+            rCounts[p.symbol(2)] ++;
         }
         logLike = logLik();
     }
@@ -214,10 +225,8 @@ public class PDIA_DMM implements Serializable, PDIA {
         double bn = beta / nSymbols[nSymbols.length - 1];
         double lgbn = Gamma.logGamma(bn);
 
-        for (int[][] arr : cMatrix.values()) {
-            int[] counts = new int[arr.length];
-            for (int i = 0; i < arr.length; i++) {
-                counts[i] = Util.sum(arr[i]);
+        for (int[] counts : rMatrix.values()) {
+            for (int i = 0; i < counts.length; i++) {
                 if (counts[i] != 0) {
                     logLik += Gamma.logGamma(counts[i] + bn) - lgbn;
                 }
@@ -284,7 +293,8 @@ public class PDIA_DMM implements Serializable, PDIA {
         rf.seat(currentType, context);
         dMatrix.put(p, proposedType);
 
-        HashMap<SinglePair, int[][]> oldCounts = (HashMap<SinglePair,int[][]>)Util.intTwoDArrayMapCopy(cMatrix);
+        HashMap<SinglePair, int[]> oMatOld = (HashMap<SinglePair,int[]>)Util.intArrayMapCopy(oMatrix);
+        HashMap<SinglePair, int[]> rMatOld = (HashMap<SinglePair,int[]>)Util.intArrayMapCopy(rMatrix);
         count(data);
         double pLogLik = logLik();
 
@@ -292,7 +302,8 @@ public class PDIA_DMM implements Serializable, PDIA {
             rf.unseat(currentType, context);
             rf.seat(proposedType, context);
         } else { // reject
-            cMatrix = oldCounts;
+            oMatrix = oMatOld;
+            rMatrix = rMatOld;
             logLike = cLogLik;
             dMatrix.put(p, currentType);
         }
@@ -305,8 +316,8 @@ public class PDIA_DMM implements Serializable, PDIA {
         HashSet<MultiPair> keysToDiscard = new HashSet<MultiPair>();
 
         for (MultiPair p : dMatrix.keySet()) {
-            int[][] counts = cMatrix.get(p.toSingle());
-            if (counts == null || counts[p.symbol(1)] == null || Util.sum(counts[p.symbol(1)]) == 0) {
+            int[] counts = oMatrix.get(p.toSingle());
+            if (counts == null || counts[p.symbol(1)] == 0) {
                 keysToDiscard.add(p);
             }
         }
@@ -333,18 +344,22 @@ public class PDIA_DMM implements Serializable, PDIA {
         int index = 0;
         for (Pair p : run(init,data)) {
             MultiPair mp = (MultiPair)p;
-            int[][] counts = cMatrix.get(mp.toSingle());
-            if (counts == null) {
-                counts = new int[no][];
-                cMatrix.put(mp.toSingle(),counts);
-            }
-            if (counts[mp.symbol(1)] == null) {
-                counts[mp.symbol(1)] = new int[nr];
+            int[] oCounts = oMatrix.get(mp.toSingle());
+            if (oCounts == null) {
+                oCounts = new int[no];
+                oMatrix.put(mp.toSingle(),oCounts);
             }
 
-            double totalCount = Util.sum(counts);
-            score[(index++)] = ((counts[mp.symbol(1)][mp.symbol(2)] + beta / nr) / (totalCount + beta));
-            counts[mp.symbol(1)][mp.symbol(2)]++;
+            int[] rCounts = rMatrix.get(mp.toSingle());
+            if (rCounts == null) {
+                rCounts = new int[nr];
+                rMatrix.put(mp.toSingle(),rCounts);
+            }
+
+            double totalCount = Util.sum(rCounts);
+            score[(index++)] = ((rCounts[mp.symbol(2)] + beta / nr) / (totalCount + beta));
+            oCounts[mp.symbol(1)] ++;
+            rCounts[mp.symbol(2)] ++;
         }
 
         return score;
