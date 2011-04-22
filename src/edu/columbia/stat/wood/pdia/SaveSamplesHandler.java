@@ -20,9 +20,11 @@ import java.util.zip.GZIPOutputStream;
 public class SaveSamplesHandler implements SamplerUpdateHandler {
 
 	File saveFile;
+	File backupFile;
 	
 	public SaveSamplesHandler(File file) {
 		saveFile = file;
+		backupFile = new File(file.getAbsolutePath() + ".backup");
 	}
 	/**
 	 * Write the samples to disk.  
@@ -31,6 +33,16 @@ public class SaveSamplesHandler implements SamplerUpdateHandler {
 	 */
 	public void update(PDIA[] pdias, int count) {
 		System.out.println("Saving " + count + " PDIAs to disk");
+		// in necessary, backup file first
+		if (saveFile.exists()) {
+			try {
+				Util.copyFile(saveFile, backupFile);
+			} catch (IOException e) {
+				System.err.println("Unable to back up PDIA file first: " + e.getMessage());
+			}
+		}
+		
+		// now write out
 		ObjectOutputStream oos = null;
 		try {
 			oos = new ObjectOutputStream(new GZIPOutputStream(new FileOutputStream(saveFile)));

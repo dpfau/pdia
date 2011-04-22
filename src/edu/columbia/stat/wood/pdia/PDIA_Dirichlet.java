@@ -152,7 +152,7 @@ public class PDIA_Dirichlet implements Serializable, PDIA {
     }
 
     public Integer transition(Pair p) {
-        return dMatrix.get((SinglePair)p);
+        return dMatrix.get(p);
     }
 
     public Integer transitionAndAdd(Pair p) {
