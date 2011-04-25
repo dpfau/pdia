@@ -11,9 +11,11 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.nio.channels.FileChannel;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
@@ -251,7 +253,29 @@ public class Util {
     	return castData;
     }
 
-    /*public static int[][] loadTokens(String path) {
+    public static void copyFile(File sourceFile, File destFile) throws IOException {
+    	if(!destFile.exists()) {
+    		destFile.createNewFile();
+    	}
+
+    	FileChannel source = null;
+    	FileChannel destination = null;
+    	try {
+    		source = new FileInputStream(sourceFile).getChannel();
+    		destination = new FileOutputStream(destFile).getChannel();
+    		destination.transferFrom(source, 0, source.size());
+    	}
+    	finally {
+    		if(source != null) {
+    			source.close();
+    		}
+    		if(destination != null) {
+    			destination.close();
+    		}
+    	}
+    }
+
+    	/*public static int[][] loadTokens(String path) {
 
     }*/
 }
