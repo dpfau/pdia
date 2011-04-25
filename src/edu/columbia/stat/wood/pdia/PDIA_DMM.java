@@ -191,6 +191,10 @@ public class PDIA_DMM implements Serializable, PDIA {
         return state;
     }
 
+    public Integer transitionAndAdd(int state, int action, int observation) {
+        return transitionAndAdd(new MultiPair(state, new int[]{action, observation}));
+    }
+
     public void count(int[][]... data) {
         oMatrix = new HashMap<SinglePair, int[]>();
         rMatrix = new HashMap<SinglePair, int[]>();
