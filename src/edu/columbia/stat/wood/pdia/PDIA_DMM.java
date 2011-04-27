@@ -128,8 +128,9 @@ public class PDIA_DMM implements Serializable, PDIA {
 
     public Set<Integer> states() {
         HashSet<Integer> states = new HashSet<Integer>();
-        for (Pair p : dMatrix.keySet()) {
-            states.add(p.state());
+        states.add(0);
+        for (Integer i : dMatrix.values()) {
+            states.add(i);
         }
         return states;
     }
