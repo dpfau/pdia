@@ -1,6 +1,7 @@
 
 package edu.columbia.stat.wood.pdia;
 
+import edu.columbia.stat.wood.hpyp.MutableDouble;
 import edu.columbia.stat.wood.hpyp.MutableInteger;
 import edu.columbia.stat.wood.hpyp.RestaurantFranchise;
 import java.io.Serializable;
@@ -193,6 +194,49 @@ public class PDIA_DMM implements Serializable, PDIA {
 
     public Integer transitionAndAdd(int state, int action, int observation) {
         return transitionAndAdd(new MultiPair(state, new int[]{action, observation}));
+    }
+
+    private double[][] transitionProbability(int[] context) {
+        HashMap<Integer,MutableDouble> map = rf.predictiveProbabilityExistingTypes(context);
+        double[][] probs = new double[map.size()][2];
+        int i = 0;
+        for (int key : map.keySet()) {
+            probs[i][0] = key;
+            probs[i][1] = map.get(key).doubleVal();
+            i++;
+        }
+        return probs;
+    }
+
+    /**
+     * Returns a two-column matrix of next states in the first column (with -1
+     * for an unused state) and the probability of transitioning to that state
+     * from an unknown state without any assumption about the observed action or
+     * observation associated with that transition
+     */
+    public double[][] transitionProbability() {
+        return transitionProbability(null);
+    }
+
+    /**
+     * Returns a two-column matrix with the same format as above, but for a
+     * transition with a known observation
+     * @param observation
+     * @return
+     */
+    public double[][] transitionProbability(int observation) {
+        return transitionProbability(new int[]{observation});
+    }
+
+    /**
+     * Returns a two-column matrix with the same format as both above, but for a
+     * transition with a known observation and action
+     * @param action
+     * @param observation
+     * @return
+     */
+    public double[][] transitionProbability(int action, int observation) {
+        return transitionProbability(new int[]{action,observation});
     }
 
     public void count(int[][]... data) {
