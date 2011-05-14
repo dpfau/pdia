@@ -78,7 +78,7 @@ public class PDIA_DMM2 implements Serializable, PDIA {
      */
     public static PDIASample sample(int[] nSymbols, int[][]... data) {
         assert nSymbols.length == data.length : "Number of data types is inconsistent!";
-        return new PDIASample(new PDIA_DMM(nSymbols),data);
+        return new PDIASample(new PDIA_DMM2(nSymbols),data);
     }
 
     //Hacked version of the above to make Matlab scripts work
@@ -95,7 +95,7 @@ public class PDIA_DMM2 implements Serializable, PDIA {
         for (int i = 0; i < action.length; i++) {
             castRew[i] = (int[])reward[i];
         }
-        return new PDIASample(new PDIA_DMM(nSymbols),castAct,castObs,castRew);
+        return new PDIASample(new PDIA_DMM2(nSymbols),castAct,castObs,castRew);
     }
 
     /**
@@ -107,15 +107,15 @@ public class PDIA_DMM2 implements Serializable, PDIA {
      * @param data
      * @return An array of posterior samples from the Markov chain
      */
-    public static PDIA_DMM[] sample(int burnIn, int interval, int samples, int[] nSymbols, int[][]... data) {
-        PDIA_DMM[] ps = new PDIA_DMM[samples];
+    public static PDIA_DMM2[] sample(int burnIn, int interval, int samples, int[] nSymbols, int[][]... data) {
+        PDIA_DMM2[] ps = new PDIA_DMM2[samples];
         int i = 0;
-        for (PDIA p : PDIA_DMM.sample(nSymbols,data)) {
+        for (PDIA p : PDIA_DMM2.sample(nSymbols,data)) {
             if (i < burnIn) {
                 System.out.println("Burn In Sample " + i + " of " + burnIn);
             }
             if (i >= burnIn && (i-burnIn) % interval == 0) {
-                ps[(i-burnIn)/interval] = (PDIA_DMM)Util.copy(p);
+                ps[(i-burnIn)/interval] = (PDIA_DMM2)Util.copy(p);
                 System.out.println("Wrote sample " + Integer.toString((i-burnIn)/interval) + " of " + samples);
             }
             i++;
@@ -423,12 +423,12 @@ public class PDIA_DMM2 implements Serializable, PDIA {
      * @param data
      * @return
      */
-    public static double[] score(PDIA_DMM[] ps, int init, int[][]... data) {
+    public static double[] score(PDIA_DMM2[] ps, int init, int[][]... data) {
         int n = 10;
         double[] score = new double[Util.totalLen(data[0])];
-        for (PDIA_DMM pdia : ps) {
+        for (PDIA_DMM2 pdia : ps) {
             for (int i = 0; i < n; i++) {
-                PDIA_DMM copy = Util.copy(pdia);
+                PDIA_DMM2 copy = Util.copy(pdia);
                 Util.addArrays(score, copy.score(init, data));
             }
         }
