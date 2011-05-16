@@ -24,6 +24,7 @@ public class PDIA_DMM2 implements Serializable, PDIA {
     public HashMap<SinglePair, int[]> oMatrix; // the set of action/observation pairs visited by the data, used for clearing unseen transitions
     protected int[] nSymbols;
     protected double beta;
+    protected double gamma; // only used for observation likelihood
     protected double logLike;
     protected static Random RNG = new Random(0L);
     private static final long serialVersionUID = 1L;
@@ -282,6 +283,21 @@ public class PDIA_DMM2 implements Serializable, PDIA {
             logLik -= Gamma.logGamma(Util.sum(counts) + beta) - lgb;
         }
 
+        // Observation likelihood part starts here
+        double lgg = Gamma.logGamma(gamma);
+        double gn = gamma / nSymbols[1];
+        double lggn = Gamma.logGamma(gn);
+
+        for (int[] counts : oMatrix.values()) {
+            for (int i = 0; i < counts.length; i++) {
+                if (counts[i] != 0) {
+                    logLik += Gamma.logGamma(counts[i] + gn) - lggn;
+                }
+            }
+            logLik -= Gamma.logGamma(Util.sum(counts) + gamma) - lgg;
+        }
+        // Observation likelihood part ends here
+
         return logLik;
     }
 
@@ -291,16 +307,20 @@ public class PDIA_DMM2 implements Serializable, PDIA {
      */
     protected void sampleBeta(double proposalSTD) {
         double currentBeta = beta;
+        double currentGamma = gamma;
 
         double proposal = currentBeta + RNG.nextGaussian() * proposalSTD;
-        if (proposal <= 0) {
+        double propGam  = currentGamma + RNG.nextGaussian() * proposalSTD;
+        if (proposal <= 0 || propGam <= 0) {
             return;
         }
         beta = proposal;
+        gamma = propGam;
         double pLogLik = logLik();
-        double r = Math.exp(pLogLik - logLike - proposal + currentBeta);
+        double r = Math.exp(pLogLik - logLike - proposal - propGam + currentBeta + currentGamma);
         if (RNG.nextDouble() >= r) {
             beta = currentBeta;
+            gamma = currentGamma;
         } else {
             logLike = pLogLik;
         }
