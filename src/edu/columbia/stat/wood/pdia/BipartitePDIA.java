@@ -60,6 +60,18 @@ public class BipartitePDIA implements Serializable, PDIA {
         return RFs[i].discounts.get();
     }
 
+    public void setBeta(double b) {
+        beta = b;
+    }
+
+    public void setConcentration(int i, int j, double c) {
+        RFs[i].concentrations.get(j).set(c);
+    }
+
+    public void setDiscount(int i, int j, double d) {
+        RFs[i].discounts.get(j).set(d);
+    }
+
     public PDIASequence run( int[][]... data ) {
         assert data.length == 3 : "Need actions, observations and rewards.";
         return new PDIASequence(this,0,data);
