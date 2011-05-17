@@ -11,38 +11,50 @@ import java.util.Random;
 import java.util.Set;
 import org.apache.commons.math.special.Gamma;
 /**
- * Another implementation of PDIA for Directed Markov Models, with a reversed
- * backoff hierarchy from the original PDIA_DMM.
- * Instead of root->observations->actions, goes root->actions->observations
+ * An implementation of PDIA for reinforcement learning that uses *two*
+ * infinite transition matrices, one for the state following an action, one for
+ * the state following an observation (and reward).  Note that this means there
+ * are two classes of states, which we refer to as a-states, for those preceding
+ * an action, and o-states, for those preceding an observation.  The typical
+ * states of a POMDP, which emit an observation and reward, correspond to
+ * o-states.
  * @author David Pfau, 2011
  */
-public class PDIA_DMM2 implements Serializable, PDIA {
+public class Dual_PDIA implements Serializable, PDIA {
 
-    protected RestaurantFranchise rf;
-    public HashMap<MultiPair, Integer> dMatrix;
-    public HashMap<SinglePair, int[]> rMatrix; // the number of times a given reward is observed following a given state and action
-    public HashMap<SinglePair, int[]> oMatrix; // the set of action/observation pairs visited by the data, used for clearing unseen transitions
-    protected int[] nSymbols;
-    protected double beta;
+    protected RestaurantFranchise[] RFs; // RFs[0]: customers are a-states, restaurants are actions, dishes are o-states
+                                         // RFs[1]: customers are o-states, restaurants are observations, dishes are a-states
+
+    public HashMap<SinglePair, Integer>[] transitions; // transitions[0]: key is length 2 array with a-state and action, value is o-state
+                                                       // transitions[1]: key is length 2 array with o-state and observation, value is o-state
+
+    public HashMap<SinglePair, int[]> rMatrix; // the number of times a given reward is observed following a given a-state and action
+    public HashMap<Integer, int[]> oMatrix; // the number of times a given observaton is seen following a given o-state, used to construct an MDP
+    protected int[] nSymbols; // nSymbols[0] = nActions, nSymbols[1] = nObservation, nSymbols[2] = nRewards
+    protected double beta; // hyperparameter for reward distributions given a state
     //protected double gamma; // only used for observation likelihood
     protected double logLike;
     protected static Random RNG = new Random(0L);
     private static final long serialVersionUID = 1L;
 
-    public PDIA_DMM2(int[] n) {
+    public Dual_PDIA( int[] n ) {
         assert n.length == 3 : "Need size of action, observation, and reward space.";
-        rf = new RestaurantFranchise(2);
+        RFs = new RestaurantFranchise[2];
+        RFs[0] = new RestaurantFranchise(1);
+        RFs[1] = new RestaurantFranchise(1);
         nSymbols = n;
-        dMatrix = new HashMap<MultiPair, Integer>();
+        transitions = new HashMap[2];
+        transitions[0] = new HashMap<SinglePair, Integer>();
+        transitions[1] = new HashMap<SinglePair, Integer>();
         beta = 10.0;
     }
 
-    public PDIASequence run(int[][]... data) {
+    public PDIASequence run( int[][]... data ) {
         assert data.length == 3 : "Need actions, observations and rewards.";
         return new PDIASequence(this,0,data);
     }
 
-    public PDIASequence run(int init, int[][]... data) {
+    public PDIASequence run( int init, int[][]... data ) {
         assert data.length == 3 : "Need actions, observations and rewards";
         return new PDIASequence(this,init,data);
     }
@@ -77,13 +89,13 @@ public class PDIA_DMM2 implements Serializable, PDIA {
      * @param data
      * @return The iterator over PDIA
      */
-    public static PDIASample sample(int[] nSymbols, int[][]... data) {
+    public static PDIASample sample( int[] nSymbols, int[][]... data ) {
         assert nSymbols.length == data.length : "Number of data types is inconsistent!";
-        return new PDIASample(new PDIA_DMM2(nSymbols),data);
+        return new PDIASample(new Dual_PDIA(nSymbols),data);
     }
 
     //Hacked version of the above to make Matlab scripts work
-    public static PDIASample sample(int[] nSymbols, Object[] action, Object[] observation, Object[] reward) {
+    public static PDIASample sample( int[] nSymbols, Object[] action, Object[] observation, Object[] reward ) {
         int[][] castAct = new int[action.length][];
         for (int i = 0; i < action.length; i++) {
             castAct[i] = (int[])action[i];
@@ -96,7 +108,7 @@ public class PDIA_DMM2 implements Serializable, PDIA {
         for (int i = 0; i < action.length; i++) {
             castRew[i] = (int[])reward[i];
         }
-        return new PDIASample(new PDIA_DMM2(nSymbols),castAct,castObs,castRew);
+        return new PDIASample(new Dual_PDIA(nSymbols),castAct,castObs,castRew);
     }
 
     /**
@@ -108,15 +120,15 @@ public class PDIA_DMM2 implements Serializable, PDIA {
      * @param data
      * @return An array of posterior samples from the Markov chain
      */
-    public static PDIA_DMM2[] sample(int burnIn, int interval, int samples, int[] nSymbols, int[][]... data) {
-        PDIA_DMM2[] ps = new PDIA_DMM2[samples];
+    public static Dual_PDIA[] sample( int burnIn, int interval, int samples, int[] nSymbols, int[][]... data ) {
+        Dual_PDIA[] ps = new Dual_PDIA[samples];
         int i = 0;
-        for (PDIA p : PDIA_DMM2.sample(nSymbols,data)) {
+        for (PDIA p : Dual_PDIA.sample(nSymbols,data)) {
             if (i < burnIn) {
                 System.out.println("Burn In Sample " + i + " of " + burnIn);
             }
             if (i >= burnIn && (i-burnIn) % interval == 0) {
-                ps[(i-burnIn)/interval] = (PDIA_DMM2)Util.copy(p);
+                ps[(i-burnIn)/interval] = (Dual_PDIA)Util.copy(p);
                 System.out.println("Wrote sample " + Integer.toString((i-burnIn)/interval) + " of " + samples);
             }
             i++;
@@ -125,35 +137,28 @@ public class PDIA_DMM2 implements Serializable, PDIA {
         return ps;
     }
 
+    /**
+     * Returns the set of states that precede an action, that is the a-states,
+     * as these are the states used for planning.
+     * @return
+     */
     public Set<Integer> states() {
         HashSet<Integer> states = new HashSet<Integer>();
         states.add(0);
-        for (Integer i : dMatrix.values()) {
+        for (Integer i : transitions[1].values()) {
             states.add(i);
         }
         return states;
     }
 
-    /**
-     * @return A deterministic map from state/symbol pairs to next states.
-     * Returns null if that state/symbol pair is not in the transition matrix.
-     */
-    public HashMap<MultiPair,Integer> transition() { return dMatrix; }
 
-    /**
-     * Given a state and symbol observed in that state, returns the next state,
-     * or null if that state is not in the transition matrix
-     * @param state
-     * @param symbol
-     * @return
-     */
-    public Integer transition(int state, int[] symbol) {
-        assert symbol.length == 2; // check to make sure we're leaving out the reward when transitioning
-        return dMatrix.get(new MultiPair(state,symbol));
+    public Integer transition( int state, int action, int observation ) {
+        return transitions[1].get( new SinglePair( halfTransition( state, action ), observation ) );
     }
 
-    public Integer transition(int state, int action, int observation) {
-        return dMatrix.get(new MultiPair(state, new int[]{action, observation}));
+    // Transition from an a-state to an o-state, rather than a-state to another a-state
+    public Integer halfTransition( int state, int action ) {
+        return transitions[0].get( new SinglePair( state, action ) );
     }
 
     /**
@@ -162,8 +167,8 @@ public class PDIA_DMM2 implements Serializable, PDIA {
      * @param action
      * @return
      */
-    public int[] observation(int state, int action) {
-        return oMatrix.get(new SinglePair(state,action));
+    public int[] observation( int state, int action ) {
+        return oMatrix.get( halfTransition( state, action ) );
     }
 
     /**
@@ -172,33 +177,38 @@ public class PDIA_DMM2 implements Serializable, PDIA {
      * @param action
      * @return
      */
-    public int[] reward(int state, int action) {
-        return rMatrix.get(new SinglePair(state,action));
+    public int[] reward( int state, int action ) {
+        return rMatrix.get( new SinglePair( state, action ) );
     }
 
-    public Integer transition(Pair p) {
-        int[] symbols = new int[]{p.symbol(0),p.symbol(1)};
-        return dMatrix.get(new MultiPair(p.state(),symbols));
+    public Integer transition( Pair p ) {
+        return transition( p.state(), p.symbol(0), p.symbol(1) );
     }
 
-    public Integer transitionAndAdd(Pair p) {
-        Integer state = transition(p);
-        if (state == null) {
-            int[] context = new int[]{p.symbol(0),p.symbol(1)};
-            int[] reverse_context = new int[]{p.symbol(1),p.symbol(0)};
-            state = rf.generate(reverse_context);
-            rf.seat(state, reverse_context);
-            dMatrix.put(new MultiPair(p.state(),context), state);
+    public Integer transitionAndAdd( Pair p ) {
+        Integer aState = transition(p);
+        if ( aState == null ) {
+            Integer oState = halfTransition( p.state(), p.symbol(0) );
+            if ( oState == null ) {
+                int[] aContext = new int[]{ p.symbol(0) };
+                oState = RFs[0].generate( aContext );
+                RFs[0].seat( oState, aContext );
+                transitions[0].put( new SinglePair( p.state(), p.symbol(0) ), oState );
+            }
+            int[] oContext = new int[]{ p.symbol(1) };
+            aState = RFs[1].generate( oContext );
+            RFs[1].seat( aState, oContext );
+            transitions[1].put( new SinglePair( oState, p.symbol(1) ), aState );
         }
-        return state;
+        return aState;
     }
 
-    public Integer transitionAndAdd(int state, int action, int observation) {
-        return transitionAndAdd(new MultiPair(state, new int[]{action, observation}));
+    public Integer transitionAndAdd( int state, int action, int observation ) {
+        return transitionAndAdd( new MultiPair( state, new int[]{ action, observation } ) );
     }
 
-    private double[][] transitionProbability(int[] context) {
-        HashMap<Integer,MutableDouble> map = rf.predictiveProbabilityExistingTypes(new int[]{ context[1], context[0] });
+    private double[][] aoTransitionProbability( int[] context ) {
+        HashMap<Integer,MutableDouble> map = RFs[0].predictiveProbabilityExistingTypes( context );
         double[][] probs = new double[map.size()][2];
         int i = 0;
         for (int key : map.keySet()) {
@@ -210,13 +220,13 @@ public class PDIA_DMM2 implements Serializable, PDIA {
     }
 
     /**
-     * Returns a two-column matrix of next states in the first column (with -1
+     * Returns a two-column matrix of next o-states in the first column (with -1
      * for an unused state) and the probability of transitioning to that state
      * from an unknown state without any assumption about the observed action or
      * observation associated with that transition
      */
-    public double[][] transitionProbability() {
-        return transitionProbability(null);
+    public double[][] aoTransitionProbability() {
+        return aoTransitionProbability( null );
     }
 
     /**
@@ -225,37 +235,59 @@ public class PDIA_DMM2 implements Serializable, PDIA {
      * @param observation
      * @return
      */
-    public double[][] transitionProbability(int action) {
-        return transitionProbability(new int[]{action});
+    public double[][] aoTransitionProbability( int action ) {
+        return aoTransitionProbability( new int[]{action} );
+    }
+
+    private double[][] oaTransitionProbability( int[] context ) {
+        HashMap<Integer,MutableDouble> map = RFs[1].predictiveProbabilityExistingTypes( context );
+        double[][] probs = new double[map.size()][2];
+        int i = 0;
+        for (int key : map.keySet()) {
+            probs[i][0] = key;
+            probs[i][1] = map.get(key).doubleVal();
+            i++;
+        }
+        return probs;
     }
 
     /**
-     * Returns a two-column matrix with the same format as both above, but for a
-     * transition with a known observation and action
-     * @param action
+     * Returns a two-column matrix of next a-states in the first column (with -1
+     * for an unused state) and the probability of transitioning to that state
+     * from an unknown state without any assumption about the observed action or
+     * observation associated with that transition
+     */
+    public double[][] oaTransitionProbability() {
+        return oaTransitionProbability( null );
+    }
+
+    /**
+     * Returns a two-column matrix with the same format as above, but for a
+     * transition with a known observation
      * @param observation
      * @return
      */
-    public double[][] transitionProbability(int action, int observation) {
-        return transitionProbability(new int[]{observation,action});
+    public double[][] oaTransitionProbability( int observation ) {
+        return oaTransitionProbability( new int[]{ observation } );
     }
 
     public void count(int[][]... data) {
-        oMatrix = new HashMap<SinglePair, int[]>();
+        oMatrix = new HashMap<Integer, int[]>();
         rMatrix = new HashMap<SinglePair, int[]>();
         for (Pair p : run(data)) {
-            SinglePair sa = new SinglePair(p.state(),p.symbol(0)); // state/action pair
+            SinglePair sa = new SinglePair( p.state(), p.symbol(0) ); // a-state and action
+            Integer oState = transitions[0].get( sa );
 
-            int[] oCounts = oMatrix.get(sa);
-            if (oCounts == null) {
+            int[] oCounts = oMatrix.get( oState );
+            if ( oCounts == null ) {
                 oCounts = new int[nSymbols[1]];
-                oMatrix.put(sa, oCounts);
+                oMatrix.put( oState, oCounts );
             }
 
-            int[] rCounts = rMatrix.get(sa);
-            if (rCounts == null) {
+            int[] rCounts = rMatrix.get( sa );
+            if ( rCounts == null ) {
                 rCounts = new int[nSymbols[2]];
-                rMatrix.put(sa, rCounts);
+                rMatrix.put( sa, rCounts );
             }
 
             oCounts[p.symbol(1)] ++;
@@ -265,7 +297,7 @@ public class PDIA_DMM2 implements Serializable, PDIA {
     }
 
     public double jointScore() {
-        return logLike + rf.logLik();
+        return logLike + RFs[0].logLik() + RFs[1].logLik();
     }
 
     public double logLik() {
@@ -331,76 +363,88 @@ public class PDIA_DMM2 implements Serializable, PDIA {
     }
 
     public void sampleOnce(int[][]... data) {
-        sampleD(data);
-        rf.sample();
+        sampleTransitions(0,data);
+        RFs[0].sample();
+        sampleTransitions(1,data);
+        RFs[1].sample();
         sampleBeta(1.0);
     }
 
     /**
-     * One sweep of sampling over the transition matrix.
+     * One sweep of sampling over the a-state to o-state transition matrix.
      * @param data
      */
-    private void sampleD(int[][]... data) {
-        for (MultiPair p : randomPairArray()) {
-            if (dMatrix.get(p) != null) {
-                sampleD(p,data);
+    private void sampleTransitions(int i, int[][]... data) {
+        for (SinglePair p : randomPairArray(transitions[i].keySet())) {
+            if (transitions[i].get(p) != null) {
+                sampleTransitions(i,p,data);
             }
-            fixDMatrix();
+            fixTransitions();
         }
     }
 
+
     /**
-     * Samples a single entry of the transition matrix
+     * Samples a single entry of a transition matrix
+     * @param i 0 = sample a-state to o-state transitions, 1 = sample o-state to a-state transitions
      * @param p The state/symbol pair to be sampled
      * @param data
      */
-    private void sampleD(MultiPair p, int[][]... data) {
+    private void sampleTransitions(int i, SinglePair p, int[][]... data) {
         int[] context = p.symbol();
         double cLogLik = logLike;
-        Integer currentType = dMatrix.get(p);
+        Integer currentType = transitions[i].get(p);
         assert (currentType != null);
 
-        int[] reverse_context = new int[]{context[1],context[0]};
-        rf.unseat(currentType, reverse_context);
-        Integer proposedType = rf.generate(reverse_context);
-        rf.seat(currentType, reverse_context);
-        dMatrix.put(p, proposedType);
+        RFs[i].unseat(currentType, context);
+        Integer proposedType = RFs[i].generate(context);
+        RFs[i].seat(currentType, context);
+        transitions[i].put(p, proposedType);
 
-        HashMap<SinglePair, int[]> oMatOld = (HashMap<SinglePair,int[]>)Util.intArrayMapCopy(oMatrix);
+        HashMap<Integer, int[]>    oMatOld = (HashMap<Integer,int[]>)   Util.intArrayMapCopy(oMatrix);
         HashMap<SinglePair, int[]> rMatOld = (HashMap<SinglePair,int[]>)Util.intArrayMapCopy(rMatrix);
         count(data);
         double pLogLik = logLik();
 
         if (Math.log(RNG.nextDouble()) < pLogLik - cLogLik) { // accept
-            rf.unseat(currentType, reverse_context);
-            rf.seat(proposedType, reverse_context);
+            RFs[0].unseat(currentType, context);
+            RFs[0].seat(proposedType, context);
         } else { // reject
             oMatrix = oMatOld;
             rMatrix = rMatOld;
             logLike = cLogLik;
-            dMatrix.put(p, currentType);
+            transitions[i].put(p, currentType);
         }
     }
 
     /**
-     * After sampling, clears out state/symbol pairs for which there are no observed data
+     * After sampling, clears out state/action and state/observation pairs for which there are no data
      */
-    private void fixDMatrix() {
-        HashSet<MultiPair> keysToDiscard = new HashSet<MultiPair>();
+    private void fixTransitions() {
+        HashSet<SinglePair> actToDiscard = new HashSet<SinglePair>();
+        HashSet<SinglePair> obsToDiscard = new HashSet<SinglePair>();
 
-        for (MultiPair p : dMatrix.keySet()) {
-            int[] counts = oMatrix.get(p.toSingle());
-            if (counts == null || counts[p.symbol(1)] == 0) {
-                keysToDiscard.add(p);
+        for ( SinglePair sa : transitions[0].keySet() ) {
+            if ( rMatrix.get( sa ) == null ) {
+                actToDiscard.add( sa );
             }
         }
 
-        int[] reverse_context = new int[2];
-        for (MultiPair p : keysToDiscard) {
-            reverse_context[0] = p.symbol(1);
-            reverse_context[1] = p.symbol(0);
-            rf.unseat(dMatrix.get(p), reverse_context);
-            dMatrix.remove(p);
+        for ( SinglePair sa : actToDiscard ) {
+            RFs[0].unseat( sa.state(), sa.symbol() );
+            transitions[0].remove( sa );
+        }
+
+        for ( SinglePair so : transitions[1].keySet() ) {
+            int[] oCounts = oMatrix.get( so.state() );
+            if ( oCounts == null || oCounts[so.symbol(0)] == 0 ) {
+                obsToDiscard.add( so );
+            }
+        }
+
+        for ( SinglePair so : obsToDiscard ) {
+            RFs[1].unseat( so.state(), so.symbol() );
+            transitions[1].remove( so );
         }
     }
 
@@ -417,16 +461,17 @@ public class PDIA_DMM2 implements Serializable, PDIA {
         int index = 0;
         for (Pair p : run(init,data)) {
             MultiPair mp = (MultiPair)p;
-            int[] oCounts = oMatrix.get(mp.toSingle());
+            Integer oState = halfTransition( mp.state(), mp.symbol(0) );
+            int[] oCounts = oMatrix.get( oState );
             if (oCounts == null) {
                 oCounts = new int[no];
-                oMatrix.put(mp.toSingle(),oCounts);
+                oMatrix.put( oState, oCounts );
             }
 
-            int[] rCounts = rMatrix.get(mp.toSingle());
+            int[] rCounts = rMatrix.get( mp.toSingle() );
             if (rCounts == null) {
                 rCounts = new int[nr];
-                rMatrix.put(mp.toSingle(),rCounts);
+                rMatrix.put( mp.toSingle(), rCounts );
             }
 
             double totalCount = Util.sum(rCounts);
@@ -447,12 +492,12 @@ public class PDIA_DMM2 implements Serializable, PDIA {
      * @param data
      * @return
      */
-    public static double[] score(PDIA_DMM2[] ps, int init, int[][]... data) {
+    public static double[] score(Dual_PDIA[] ps, int init, int[][]... data) {
         int n = 10;
         double[] score = new double[Util.totalLen(data[0])];
-        for (PDIA_DMM2 pdia : ps) {
+        for (Dual_PDIA pdia : ps) {
             for (int i = 0; i < n; i++) {
-                PDIA_DMM2 copy = Util.copy(pdia);
+                Dual_PDIA copy = Util.copy(pdia);
                 Util.addArrays(score, copy.score(init, data));
             }
         }
@@ -463,53 +508,18 @@ public class PDIA_DMM2 implements Serializable, PDIA {
         return score;
     }
 
-    // Use with caution, I haven't checked this
+    /**
+     * Does nothing.  Don't waste your time.
+     */
     public void check() {
-    	HashMap<int[], HashMap<Integer, MutableInteger>> dCustomerCounts = new HashMap<int[], HashMap<Integer, MutableInteger>>();
-
-        for (MultiPair p : dMatrix.keySet()) {
-            int[] context = p.symbol();
-
-            HashMap<Integer, MutableInteger> typeCountMap = dCustomerCounts.get(context);
-            if (typeCountMap == null) {
-                typeCountMap = new HashMap<Integer, MutableInteger>();
-                dCustomerCounts.put(context, typeCountMap);
-            }
-
-            Integer tKey = dMatrix.get(p);
-            MutableInteger count = typeCountMap.get(tKey);
-
-            if (count == null) {
-                count = new MutableInteger(0);
-                typeCountMap.put(tKey, count);
-            }
-
-            count.increment();
-        }
-
-        int[] tCounts = new int[2];
-        for (int i = 0; i < nSymbols[0]; i++) {
-            for (int j = 0; j < nSymbols[1]; j++) {
-                int[] context = new int[]{i,j};
-                int[] reverse_context = new int[]{j,i};
-                HashMap<Integer, MutableInteger> hm = dCustomerCounts.get(context);
-                for (Integer type : hm.keySet()) {
-                    rf.get(reverse_context).getCounts(type.intValue(), tCounts);
-                    assert (tCounts[0] == hm.get(type).intVal());
-                }
-            }
-        }
+    	
     }
 
-    protected MultiPair[] randomPairArray() {
-        Object[] oa = Util.randArray(dMatrix.keySet());
-        MultiPair[] pa = new MultiPair[oa.length];
+    protected SinglePair[] randomPairArray(Set s) {
+        Object[] oa = Util.randArray(s);
+        SinglePair[] pa = new SinglePair[oa.length];
         System.arraycopy(oa, 0, pa, 0, oa.length);
         return pa;
     }
-
-
-
-
 }
 
