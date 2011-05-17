@@ -20,7 +20,7 @@ import org.apache.commons.math.special.Gamma;
  * o-states.
  * @author David Pfau, 2011
  */
-public class RestrictedPDIA implements Serializable, PDIA {
+public class BipartitePDIA implements Serializable, PDIA {
 
     protected RestaurantFranchise[] RFs; // RFs[0]: customers are a-states, restaurants are actions, dishes are o-states
                                          // RFs[1]: customers are o-states, restaurants are observations, dishes are a-states
@@ -37,7 +37,7 @@ public class RestrictedPDIA implements Serializable, PDIA {
     protected static Random RNG = new Random(0L);
     private static final long serialVersionUID = 1L;
 
-    public RestrictedPDIA( int[] n ) {
+    public BipartitePDIA( int[] n ) {
         assert n.length == 3 : "Need size of action, observation, and reward space.";
         RFs = new RestaurantFranchise[2];
         RFs[0] = new RestaurantFranchise(1);
@@ -91,7 +91,7 @@ public class RestrictedPDIA implements Serializable, PDIA {
      */
     public static PDIASample sample( int[] nSymbols, int[][]... data ) {
         assert nSymbols.length == data.length : "Number of data types is inconsistent!";
-        return new PDIASample(new RestrictedPDIA(nSymbols),data);
+        return new PDIASample(new BipartitePDIA(nSymbols),data);
     }
 
     //Hacked version of the above to make Matlab scripts work
@@ -108,7 +108,7 @@ public class RestrictedPDIA implements Serializable, PDIA {
         for (int i = 0; i < action.length; i++) {
             castRew[i] = (int[])reward[i];
         }
-        return new PDIASample(new RestrictedPDIA(nSymbols),castAct,castObs,castRew);
+        return new PDIASample(new BipartitePDIA(nSymbols),castAct,castObs,castRew);
     }
 
     /**
@@ -120,15 +120,15 @@ public class RestrictedPDIA implements Serializable, PDIA {
      * @param data
      * @return An array of posterior samples from the Markov chain
      */
-    public static RestrictedPDIA[] sample( int burnIn, int interval, int samples, int[] nSymbols, int[][]... data ) {
-        RestrictedPDIA[] ps = new RestrictedPDIA[samples];
+    public static BipartitePDIA[] sample( int burnIn, int interval, int samples, int[] nSymbols, int[][]... data ) {
+        BipartitePDIA[] ps = new BipartitePDIA[samples];
         int i = 0;
-        for (PDIA p : RestrictedPDIA.sample(nSymbols,data)) {
+        for (PDIA p : BipartitePDIA.sample(nSymbols,data)) {
             if (i < burnIn) {
                 System.out.println("Burn In Sample " + i + " of " + burnIn);
             }
             if (i >= burnIn && (i-burnIn) % interval == 0) {
-                ps[(i-burnIn)/interval] = (RestrictedPDIA)Util.copy(p);
+                ps[(i-burnIn)/interval] = (BipartitePDIA)Util.copy(p);
                 System.out.println("Wrote sample " + Integer.toString((i-burnIn)/interval) + " of " + samples);
             }
             i++;
@@ -492,12 +492,12 @@ public class RestrictedPDIA implements Serializable, PDIA {
      * @param data
      * @return
      */
-    public static double[] score(RestrictedPDIA[] ps, int init, int[][]... data) {
+    public static double[] score(BipartitePDIA[] ps, int init, int[][]... data) {
         int n = 10;
         double[] score = new double[Util.totalLen(data[0])];
-        for (RestrictedPDIA pdia : ps) {
+        for (BipartitePDIA pdia : ps) {
             for (int i = 0; i < n; i++) {
-                RestrictedPDIA copy = Util.copy(pdia);
+                BipartitePDIA copy = Util.copy(pdia);
                 Util.addArrays(score, copy.score(init, data));
             }
         }

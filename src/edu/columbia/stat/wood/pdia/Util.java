@@ -47,6 +47,18 @@ public class Util {
         return obj;
     }
 
+    public static void write(Object o, String path) {
+        try {
+            FileOutputStream fos = new FileOutputStream(path);
+            ObjectOutputStream out = new ObjectOutputStream(fos);
+            out.writeObject(o);
+            out.flush();
+            out.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
     public static <E> Map<E,int[]> intArrayMapCopy(Map<E,int[]> map) {
         Map<E,int[]> copy = null;
         if (map instanceof HashMap) {
