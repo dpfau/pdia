@@ -38,6 +38,18 @@ public class PDIA_DMM implements Serializable, PDIA {
         beta = 10.0;
     }
 
+    public double beta() {
+        return beta;
+    }
+
+    public double[] concentrations() {
+        return rf.concentrations.get();
+    }
+
+    public double[] discounts() {
+        return rf.discounts.get();
+    }
+
     public PDIASequence run(int[][]... data) {
         assert data.length == 3 : "Need actions, observations and rewards.";
         return new PDIASequence(this,0,data);

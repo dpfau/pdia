@@ -25,6 +25,14 @@ public class Concentrations implements Serializable {
         return concentrations[(concentrations.length - 1)];
     }
 
+    public double[] get() {
+        double[] d = new double[concentrations.length];
+        for (int i = 0; i < concentrations.length; i++) {
+            d[i] = concentrations[i].doubleVal();
+        }
+        return d;
+    }
+
     public int length() {
         return concentrations.length;
     }

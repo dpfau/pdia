@@ -2,7 +2,6 @@
 package edu.columbia.stat.wood.pdia;
 
 import edu.columbia.stat.wood.hpyp.MutableDouble;
-import edu.columbia.stat.wood.hpyp.MutableInteger;
 import edu.columbia.stat.wood.hpyp.RestaurantFranchise;
 import java.io.Serializable;
 import java.util.HashMap;
@@ -26,12 +25,12 @@ public class BipartitePDIA implements Serializable, PDIA {
                                          // RFs[1]: customers are o-states, restaurants are observations, dishes are a-states
 
     public HashMap<SinglePair, Integer>[] transitions; // transitions[0]: key is length 2 array with a-state and action, value is o-state
-                                                       // transitions[1]: key is length 2 array with o-state and observation, value is o-state
+                                                       // transitions[1]: key is length 2 array with o-state and observation, value is a-state
 
     public HashMap<SinglePair, int[]> rMatrix; // the number of times a given reward is observed following a given a-state and action
     public HashMap<Integer, int[]> oMatrix; // the number of times a given observaton is seen following a given o-state, used to construct an MDP
     protected int[] nSymbols; // nSymbols[0] = nActions, nSymbols[1] = nObservation, nSymbols[2] = nRewards
-    protected double beta; // hyperparameter for reward distributions given a state
+    public double beta; // hyperparameter for reward distributions given a state
     //protected double gamma; // only used for observation likelihood
     protected double logLike;
     protected static Random RNG = new Random(0L);
@@ -47,6 +46,18 @@ public class BipartitePDIA implements Serializable, PDIA {
         transitions[0] = new HashMap<SinglePair, Integer>();
         transitions[1] = new HashMap<SinglePair, Integer>();
         beta = 10.0;
+    }
+
+    public double beta() {
+        return beta;
+    }
+
+    public double[] concentrations(int i) {
+        return RFs[i].concentrations.get();
+    }
+
+    public double[] discounts(int i) {
+        return RFs[i].discounts.get();
     }
 
     public PDIASequence run( int[][]... data ) {

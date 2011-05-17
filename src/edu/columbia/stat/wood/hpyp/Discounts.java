@@ -26,6 +26,14 @@ public class Discounts implements Serializable {
         return discounts[(discounts.length - 1)];
     }
 
+    public double[] get() {
+        double[] d = new double[discounts.length];
+        for (int i = 0; i < discounts.length; i++) {
+            d[i] = discounts[i].doubleVal();
+        }
+        return d;
+    }
+
     public int length() {
         return discounts.length;
     }
