@@ -25,7 +25,7 @@ public class PDIA_DMM implements Serializable, PDIA {
     public HashMap<SinglePair, int[]> rMatrix; // the number of times a given reward is observed following a given state and action
     public HashMap<SinglePair, int[]> oMatrix; // the set of action/observation pairs visited by the data, used for clearing unseen transitions
     protected int[] nSymbols;
-    protected double beta;
+    public double beta;
     protected double logLike;
     protected static Random RNG = new Random(0L);
     private static final long serialVersionUID = 1L;
