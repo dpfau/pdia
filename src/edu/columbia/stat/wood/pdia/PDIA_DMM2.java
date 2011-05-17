@@ -22,7 +22,7 @@ public class PDIA_DMM2 implements Serializable, PDIA {
     public HashMap<MultiPair, Integer> dMatrix;
     public HashMap<SinglePair, int[]> rMatrix; // the number of times a given reward is observed following a given state and action
     public HashMap<SinglePair, int[]> oMatrix; // the set of action/observation pairs visited by the data, used for clearing unseen transitions
-    protected int[] nSymbols;
+    public int[] nSymbols;
     public double beta;
     //protected double gamma; // only used for observation likelihood
     protected double logLike;
@@ -95,7 +95,7 @@ public class PDIA_DMM2 implements Serializable, PDIA {
     }
 
     //Hacked version of the above to make Matlab scripts work
-    public static PDIASample sample(int[] nSymbols, Object[] action, Object[] observation, Object[] reward) {
+    public static PDIASample sample( PDIA_DMM2 p, Object[] action, Object[] observation, Object[] reward ) {
         int[][] castAct = new int[action.length][];
         for (int i = 0; i < action.length; i++) {
             castAct[i] = (int[])action[i];
@@ -108,7 +108,11 @@ public class PDIA_DMM2 implements Serializable, PDIA {
         for (int i = 0; i < action.length; i++) {
             castRew[i] = (int[])reward[i];
         }
-        return new PDIASample(new PDIA_DMM2(nSymbols),castAct,castObs,castRew);
+        return new PDIASample(p,castAct,castObs,castRew);
+    }
+
+    public static PDIASample sample( int[] nSymbols, Object[] action, Object[] observation, Object[] reward ) {
+        return PDIA_DMM2.sample(new PDIA_DMM2(nSymbols), action, observation, reward);
     }
 
     /**

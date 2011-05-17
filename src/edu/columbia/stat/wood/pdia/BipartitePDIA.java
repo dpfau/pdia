@@ -29,7 +29,7 @@ public class BipartitePDIA implements Serializable, PDIA {
 
     public HashMap<SinglePair, int[]> rMatrix; // the number of times a given reward is observed following a given a-state and action
     public HashMap<Integer, int[]> oMatrix; // the number of times a given observaton is seen following a given o-state, used to construct an MDP
-    protected int[] nSymbols; // nSymbols[0] = nActions, nSymbols[1] = nObservation, nSymbols[2] = nRewards
+    public int[] nSymbols; // nSymbols[0] = nActions, nSymbols[1] = nObservation, nSymbols[2] = nRewards
     public double beta; // hyperparameter for reward distributions given a state
     //protected double gamma; // only used for observation likelihood
     protected double logLike;
@@ -106,7 +106,7 @@ public class BipartitePDIA implements Serializable, PDIA {
     }
 
     //Hacked version of the above to make Matlab scripts work
-    public static PDIASample sample( int[] nSymbols, Object[] action, Object[] observation, Object[] reward ) {
+    public static PDIASample sample( BipartitePDIA p, Object[] action, Object[] observation, Object[] reward ) {
         int[][] castAct = new int[action.length][];
         for (int i = 0; i < action.length; i++) {
             castAct[i] = (int[])action[i];
@@ -119,7 +119,11 @@ public class BipartitePDIA implements Serializable, PDIA {
         for (int i = 0; i < action.length; i++) {
             castRew[i] = (int[])reward[i];
         }
-        return new PDIASample(new BipartitePDIA(nSymbols),castAct,castObs,castRew);
+        return new PDIASample(p,castAct,castObs,castRew);
+    }
+
+    public static PDIASample sample( int[] nSymbols, Object[] action, Object[] observation, Object[] reward ) {
+        return BipartitePDIA.sample(new BipartitePDIA(nSymbols), action, observation, reward);
     }
 
     /**
