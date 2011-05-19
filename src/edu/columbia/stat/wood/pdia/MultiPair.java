@@ -25,7 +25,8 @@ public class MultiPair implements Serializable, Pair {
     public int symbol(int i) { return symbol[i]; }
 
     public SinglePair toSingle() {
-        return new SinglePair(state,symbol[0]);
+        SinglePair sp = new SinglePair(state,symbol[0]);
+        return sp;
     }
 
     @Override

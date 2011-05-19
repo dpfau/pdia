@@ -23,7 +23,7 @@ public class PDIA_DMM implements Serializable, PDIA {
     protected RestaurantFranchise rf;
     public HashMap<MultiPair, Integer> dMatrix;
     public HashMap<SinglePair, int[]> rMatrix; // the number of times a given reward is observed following a given state and action
-    public HashMap<SinglePair, int[]> oMatrix; // the set of action/observation pairs visited by the data, used for clearing unseen transitions
+    public HashMap<SinglePair, int[]> oMatrix; // the number of times a given observation is observed following a state and action
     public int[] nSymbols;
     public double beta;
     protected double logLike;

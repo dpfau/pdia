@@ -19,7 +19,7 @@ import org.apache.commons.math.special.Gamma;
 public class PDIA_DMM2 implements Serializable, PDIA {
 
     protected RestaurantFranchise rf;
-    public HashMap<MultiPair, Integer> dMatrix;
+    public HashMap<MultiPair, Integer> dMatrix; // switch back to private after debugging
     public HashMap<SinglePair, int[]> rMatrix; // the number of times a given reward is observed following a given state and action
     public HashMap<SinglePair, int[]> oMatrix; // the set of action/observation pairs visited by the data, used for clearing unseen transitions
     public int[] nSymbols;
@@ -159,6 +159,7 @@ public class PDIA_DMM2 implements Serializable, PDIA {
         for (Integer i : dMatrix.values()) {
             states.add(i);
         }
+
         return states;
     }
 
@@ -181,7 +182,7 @@ public class PDIA_DMM2 implements Serializable, PDIA {
     }
 
     public Integer transition(int state, int action, int observation) {
-        return dMatrix.get(new MultiPair(state, new int[]{action, observation}));
+        return dMatrix.get(new MultiPair(state, action, observation));
     }
 
     /**
@@ -205,24 +206,22 @@ public class PDIA_DMM2 implements Serializable, PDIA {
     }
 
     public Integer transition(Pair p) {
-        int[] symbols = new int[]{p.symbol(0),p.symbol(1)};
-        return dMatrix.get(new MultiPair(p.state(),symbols));
+        return dMatrix.get(new MultiPair(p.state(), p.symbol(0), p.symbol(1)));
     }
 
     public Integer transitionAndAdd(Pair p) {
         Integer state = transition(p);
         if (state == null) {
-            int[] context = new int[]{p.symbol(0),p.symbol(1)};
             int[] reverse_context = new int[]{p.symbol(1),p.symbol(0)};
             state = rf.generate(reverse_context);
             rf.seat(state, reverse_context);
-            dMatrix.put(new MultiPair(p.state(),context), state);
+            dMatrix.put(new MultiPair(p.state(), p.symbol(0), p.symbol(1)), state);
         }
         return state;
     }
 
     public Integer transitionAndAdd(int state, int action, int observation) {
-        return transitionAndAdd(new MultiPair(state, new int[]{action, observation}));
+        return transitionAndAdd(new MultiPair(state, action, observation));
     }
 
     private double[][] transitionProbability(int[] context) {
@@ -413,7 +412,8 @@ public class PDIA_DMM2 implements Serializable, PDIA {
     /**
      * After sampling, clears out state/symbol pairs for which there are no observed data
      */
-    private void fixDMatrix() {
+    // switch back to private after debugging
+    public void fixDMatrix() {
         HashSet<MultiPair> keysToDiscard = new HashSet<MultiPair>();
 
         for (MultiPair p : dMatrix.keySet()) {

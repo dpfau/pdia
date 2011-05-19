@@ -180,7 +180,11 @@ public class BipartitePDIA implements Serializable, PDIA {
 
 
     public Integer transition( int state, int action, int observation ) {
-        return transitions[1].get( new SinglePair( halfTransition( state, action ), observation ) );
+        if ( halfTransition( state, action ) == null ) {
+            return null;
+        } else {
+            return transitions[1].get( new SinglePair( halfTransition( state, action ), observation ) );
+        }
     }
 
     // Transition from an a-state to an o-state, rather than a-state to another a-state
