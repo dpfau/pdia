@@ -2,6 +2,7 @@
 package edu.columbia.stat.wood.pdia;
 
 import edu.columbia.stat.wood.hpyp.MutableDouble;
+import edu.columbia.stat.wood.hpyp.Restaurant;
 import edu.columbia.stat.wood.hpyp.RestaurantFranchise;
 import java.io.Serializable;
 import java.util.HashMap;
@@ -60,16 +61,40 @@ public class BipartitePDIA implements Serializable, PDIA {
         return RFs[i].discounts.get();
     }
 
-    public void setBeta(double b) {
+    public double[] concentrations() {
+        double[] c = new double[4];
+        System.arraycopy( concentrations(0), 0, c, 0, 2 );
+        System.arraycopy( concentrations(1), 0, c, 2, 2 );
+        return c;
+    }
+
+    public double[] discounts() {
+        double[] d = new double[4];
+        System.arraycopy( discounts(0), 0, d, 0, 2 );
+        System.arraycopy( discounts(1), 0, d, 2, 2 );
+        return d;
+    }
+
+    public void setBeta( double b ) {
         beta = b;
     }
 
-    public void setConcentration(int i, int j, double c) {
+    public void setConcentration( int i, int j, double c ) {
         RFs[i].concentrations.get(j).set(c);
     }
 
-    public void setDiscount(int i, int j, double d) {
+    public void setDiscount( int i, int j, double d ) {
         RFs[i].discounts.get(j).set(d);
+    }
+
+    public void setConcentration( int i, double c ) {
+        setConcentration(0,i,c);
+        setConcentration(1,i,c);
+    }
+
+    public void setDiscount( int i, double d ) {
+        setDiscount(0,i,d);
+        setDiscount(1,i,d);
     }
 
     public PDIASequence run( int[][]... data ) {
@@ -216,26 +241,27 @@ public class BipartitePDIA implements Serializable, PDIA {
         return transition( p.state(), p.symbol(0), p.symbol(1) );
     }
 
-    public Integer transitionAndAdd( Pair p ) {
-        Integer aState = transition(p);
-        if ( aState == null ) {
-            Integer oState = halfTransition( p.state(), p.symbol(0) );
-            if ( oState == null ) {
-                int[] aContext = new int[]{ p.symbol(0) };
-                oState = RFs[0].generate( aContext );
-                RFs[0].seat( oState, aContext );
-                transitions[0].put( new SinglePair( p.state(), p.symbol(0) ), oState );
-            }
-            int[] oContext = new int[]{ p.symbol(1) };
-            aState = RFs[1].generate( oContext );
-            RFs[1].seat( aState, oContext );
-            transitions[1].put( new SinglePair( oState, p.symbol(1) ), aState );
+    public Integer transitionAndAdd(Pair p) {
+        Integer oState = halfTransition(p.state(), p.symbol(0));
+        if (oState == null) {
+            int[] aContext = new int[]{p.symbol(0)};
+            oState = RFs[0].generate(aContext);
+            RFs[0].seat(oState, aContext);
+            transitions[0].put(new SinglePair(p.state(), p.symbol(0)), oState);
+        }
+        SinglePair so = new SinglePair( oState, p.symbol(1) );
+        Integer aState = transitions[1].get( so );
+            if ( aState == null ) {
+            int[] oContext = new int[]{p.symbol(1)};
+            aState = RFs[1].generate(oContext);
+            RFs[1].seat(aState, oContext);
+            transitions[1].put(so, aState);
         }
         return aState;
     }
 
-    public Integer transitionAndAdd( int state, int action, int observation ) {
-        return transitionAndAdd( new MultiPair( state, new int[]{ action, observation } ) );
+    public Integer transitionAndAdd(int state, int action, int observation) {
+        return transitionAndAdd( new MultiPair( state, action, observation ) );
     }
 
     private double[][] aoTransitionProbability( int[] context ) {
@@ -399,6 +425,9 @@ public class BipartitePDIA implements Serializable, PDIA {
         sampleTransitions(1,data);
         RFs[1].sample();
         sampleBeta(1.0);
+        System.out.println(transitions[0].keySet().size() + "state/action pairs, "
+                + transitions[1].keySet().size() + "state/observation pairs, "
+                + states().size() + "states.");
     }
 
     /**
@@ -438,8 +467,8 @@ public class BipartitePDIA implements Serializable, PDIA {
         double pLogLik = logLik();
 
         if (Math.log(RNG.nextDouble()) < pLogLik - cLogLik) { // accept
-            RFs[0].unseat(currentType, context);
-            RFs[0].seat(proposedType, context);
+            RFs[i].unseat(currentType, context);
+            RFs[i].seat(proposedType, context);
         } else { // reject
             oMatrix = oMatOld;
             rMatrix = rMatOld;
@@ -462,7 +491,7 @@ public class BipartitePDIA implements Serializable, PDIA {
         }
 
         for ( SinglePair sa : actToDiscard ) {
-            RFs[0].unseat( sa.state(), sa.symbol() );
+            RFs[0].unseat( transitions[0].get( sa ), sa.symbol() );
             transitions[0].remove( sa );
         }
 
@@ -474,7 +503,7 @@ public class BipartitePDIA implements Serializable, PDIA {
         }
 
         for ( SinglePair so : obsToDiscard ) {
-            RFs[1].unseat( so.state(), so.symbol() );
+            RFs[1].unseat( transitions[1].get( so ), so.symbol() );
             transitions[1].remove( so );
         }
     }

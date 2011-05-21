@@ -7,6 +7,7 @@ import edu.columbia.stat.wood.hpyp.RestaurantFranchise;
 import java.io.Serializable;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 import org.apache.commons.math.special.Gamma;
@@ -361,6 +362,8 @@ public class PDIA_DMM2 implements Serializable, PDIA {
         sampleD(data);
         rf.sample();
         sampleBeta(1.0);
+        System.out.println(dMatrix.keySet().size() + " state/action/observation triples, "
+                + states().size() + " states.");
     }
 
     /**
@@ -368,7 +371,7 @@ public class PDIA_DMM2 implements Serializable, PDIA {
      * @param data
      */
     private void sampleD(int[][]... data) {
-        for (MultiPair p : randomPairArray()) {
+        for (MultiPair p : randomPairArray(dMatrix)) {
             if (dMatrix.get(p) != null) {
                 sampleD(p,data);
             }
@@ -529,8 +532,8 @@ public class PDIA_DMM2 implements Serializable, PDIA {
         }
     }
 
-    protected MultiPair[] randomPairArray() {
-        Object[] oa = Util.randArray(dMatrix.keySet());
+    protected MultiPair[] randomPairArray(Map map) {
+        Object[] oa = Util.randArray(map.keySet());
         MultiPair[] pa = new MultiPair[oa.length];
         System.arraycopy(oa, 0, pa, 0, oa.length);
         return pa;

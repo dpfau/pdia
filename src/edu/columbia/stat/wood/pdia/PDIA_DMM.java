@@ -7,6 +7,7 @@ import edu.columbia.stat.wood.hpyp.RestaurantFranchise;
 import java.io.Serializable;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 import org.apache.commons.math.special.Gamma;
@@ -339,6 +340,67 @@ public class PDIA_DMM implements Serializable, PDIA {
         sampleD(data);
         rf.sample();
         sampleBeta(1.0);
+        System.out.println(dMatrix.keySet().size() + " state/action/observation triples, "
+                + states().size() + " states.");
+    }
+
+    /**
+     * Propose a new dish for an entire table, rather than just reseating one customer.
+     * DUDN'T WORK
+     */
+    private void sampleAbove(int[][]... data) {
+        // Construct a map from a dish and context to the set of customers
+        // If mp is a key for dishToCustomers, mp.state() is the dish and mp.symbol() is the context
+        // An abuse of the MultiPair class, I know, but it has the fields I need
+        HashMap< MultiPair, Set< Integer > > dishToCustomers = new HashMap< MultiPair, Set< Integer > >();
+        for ( MultiPair mp : dMatrix.keySet() ) {
+            MultiPair dishAndContext = new MultiPair( dMatrix.get( mp ), mp.symbol() );
+            Set< Integer > customers = dishToCustomers.get( dishAndContext );
+            if ( customers == null ) {
+                customers = new HashSet< Integer >();
+                dishToCustomers.put( dishAndContext, customers );
+            }
+            customers.add(mp.state());
+        }
+
+
+        for ( MultiPair mp : randomPairArray( dishToCustomers ) ) {
+            int[] tsa = rf.get( mp.symbol() ).tableMap.get( mp.state() );
+            Object[] customers = dishToCustomers.get( mp ).toArray();
+            int t = 0;
+            for ( int i = 0; i < tsa.length; i++ ) {
+                double cLogLik = logLike;
+                int[] above = { mp.symbol(1) }; // the higher-level restaurant from which we are removing customers
+                rf.unseat( mp.state(), above );
+                Integer proposedType = rf.generate( above );
+                rf.seat( mp.state(), above );
+                for ( int j = 0; j < tsa[i]; j++ ) {
+                    System.out.println( customers.length + "," + tsa[i] + "," + t);
+                    dMatrix.put( new MultiPair( (Integer)customers[t], mp.symbol()), proposedType );
+                    t++;
+                }
+
+                HashMap<SinglePair, int[]> oMatOld = (HashMap<SinglePair, int[]>) Util.intArrayMapCopy(oMatrix);
+                HashMap<SinglePair, int[]> rMatOld = (HashMap<SinglePair, int[]>) Util.intArrayMapCopy(rMatrix);
+                count(data);
+                double pLogLik = logLik();
+
+                if (Math.log(RNG.nextDouble()) < pLogLik - cLogLik) { // accept
+                    rf.unseat( mp.state(), above );
+                    rf.seat( proposedType, above );
+                } else { // reject
+                    oMatrix = oMatOld;
+                    rMatrix = rMatOld;
+                    logLike = cLogLik;
+                    t -= tsa[i];
+                    for ( int j = 0; j < tsa[i]; j++ ) {
+                        dMatrix.put( new MultiPair( (Integer)customers[t], mp.symbol()), mp.state() );
+                        t++;
+                    }
+                }
+            }
+        }
+        fixDMatrix();
     }
 
     /**
@@ -346,7 +408,7 @@ public class PDIA_DMM implements Serializable, PDIA {
      * @param data
      */
     private void sampleD(int[][]... data) {
-        for (MultiPair p : randomPairArray()) {
+        for (MultiPair p : randomPairArray( dMatrix )) {
             if (dMatrix.get(p) != null) {
                 sampleD(p,data);
             }
@@ -504,14 +566,12 @@ public class PDIA_DMM implements Serializable, PDIA {
         }
     }
 
-    protected MultiPair[] randomPairArray() {
-        Object[] oa = Util.randArray(dMatrix.keySet());
+    protected MultiPair[] randomPairArray(Map map) {
+        Object[] oa = Util.randArray(map.keySet());
         MultiPair[] pa = new MultiPair[oa.length];
         System.arraycopy(oa, 0, pa, 0, oa.length);
         return pa;
     }
-
-
 
 
 }
