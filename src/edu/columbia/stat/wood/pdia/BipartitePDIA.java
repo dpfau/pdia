@@ -32,7 +32,7 @@ public class BipartitePDIA implements Serializable, PDIA {
     public HashMap<Integer, int[]> oMatrix; // the number of times a given observaton is seen following a given o-state, used to construct an MDP
     public int[] nSymbols; // nSymbols[0] = nActions, nSymbols[1] = nObservation, nSymbols[2] = nRewards
     public double beta; // hyperparameter for reward distributions given a state
-    protected double gamma; // only used for observation likelihood
+    public double gamma; // only used for observation likelihood
     protected double logLike;
     protected static Random RNG = new Random(0L);
     private static final long serialVersionUID = 1L;
