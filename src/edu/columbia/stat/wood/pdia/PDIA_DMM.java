@@ -26,7 +26,8 @@ public class PDIA_DMM implements Serializable, PDIA {
     public HashMap<SinglePair, int[]> rMatrix; // the number of times a given reward is observed following a given state and action
     public HashMap<SinglePair, int[]> oMatrix; // the number of times a given observation is observed following a state and action
     public int[] nSymbols;
-    public double beta;
+    protected double beta;
+    protected double gamma;
     protected double logLike;
     protected static Random RNG = new Random(0L);
     private static final long serialVersionUID = 1L;
@@ -37,10 +38,15 @@ public class PDIA_DMM implements Serializable, PDIA {
         nSymbols = n;
         dMatrix = new HashMap<MultiPair, Integer>();
         beta = 10.0;
+        gamma = 10.0;
     }
 
     public double beta() {
         return beta;
+    }
+
+    public double gamma() {
+        return gamma;
     }
 
     public double[] concentrations() {
@@ -53,6 +59,10 @@ public class PDIA_DMM implements Serializable, PDIA {
 
     public void setBeta(double b) {
         beta = b;
+    }
+
+    public void setGamma(double g) {
+        gamma = g;
     }
 
     public void setConcentration(int i, double c) {
@@ -312,6 +322,19 @@ public class PDIA_DMM implements Serializable, PDIA {
             logLik -= Gamma.logGamma(Util.sum(counts) + beta) - lgb;
         }
 
+        double lgg = Gamma.logGamma(gamma);
+        double gn = gamma / nSymbols[1];
+        double lggn = Gamma.logGamma(gn);
+
+        for (int[] counts : oMatrix.values()) {
+            for (int i = 0; i < counts.length; i++) {
+                if (counts[i] != 0) {
+                    logLik += Gamma.logGamma(counts[i] + gn) - lggn;
+                }
+            }
+            logLik -= Gamma.logGamma(Util.sum(counts) + gamma) - lgg;
+        }
+
         return logLik;
     }
 
@@ -321,16 +344,24 @@ public class PDIA_DMM implements Serializable, PDIA {
      */
     protected void sampleBeta(double proposalSTD) {
         double currentBeta = beta;
+        double currentGamma = gamma;
 
         double proposal = currentBeta + RNG.nextGaussian() * proposalSTD;
+        double propGam  = currentGamma + RNG.nextGaussian() * proposalSTD;
         if (proposal <= 0) {
             return;
         }
+        if (propGam <= 0) {
+            return;
+        }
         beta = proposal;
+        gamma = propGam;
         double pLogLik = logLik();
-        double r = Math.exp(pLogLik - logLike - proposal + currentBeta);
+        double r = Math.exp(pLogLik - logLike - proposal - propGam + currentBeta + currentGamma);
+        //double r = Math.exp(pLogLik - logLike - proposal + currentBeta);
         if (RNG.nextDouble() >= r) {
             beta = currentBeta;
+            gamma = currentGamma;
         } else {
             logLike = pLogLik;
         }
