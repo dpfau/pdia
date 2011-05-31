@@ -222,7 +222,7 @@ public class PDIA_Dirichlet implements Serializable, PDIA {
         }
     }
 
-    public void sampleOnce(int[][]... data) {
+    public void sampleOnce(double temp, int[][]... data) {
         sampleD(data);
         rf.sample();
         sampleBeta(1.0);

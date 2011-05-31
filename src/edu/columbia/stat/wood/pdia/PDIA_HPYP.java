@@ -106,7 +106,7 @@ public class PDIA_HPYP extends PDIA_Dirichlet {
     }
 
     @Override
-    public void sampleOnce(int[][]... data) {
+    public void sampleOnce(double temp, int[][]... data) {
         sampleD(data);
         rf.sample();
         emitRF.sample();

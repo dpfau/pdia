@@ -146,13 +146,15 @@ public class BipartitePDIA implements Serializable, PDIA {
      * @param data
      * @return The iterator over PDIA
      */
-    public static PDIASample sample( int[] nSymbols, int[][]... data ) {
+    public static PDIASample sample( double anneal, int[] nSymbols, int[][]... data ) {
         assert nSymbols.length == data.length : "Number of data types is inconsistent!";
-        return new PDIASample(new BipartitePDIA(nSymbols),data);
+        PDIASample ps = new PDIASample(new BipartitePDIA(nSymbols),data);
+        ps.setAnnealRate(anneal);
+        return ps;
     }
 
     //Hacked version of the above to make Matlab scripts work
-    public static PDIASample sample( BipartitePDIA p, Object[] action, Object[] observation, Object[] reward ) {
+    public static PDIASample sample( double anneal, BipartitePDIA p, Object[] action, Object[] observation, Object[] reward ) {
         int[][] castAct = new int[action.length][];
         for (int i = 0; i < action.length; i++) {
             castAct[i] = (int[])action[i];
@@ -165,11 +167,13 @@ public class BipartitePDIA implements Serializable, PDIA {
         for (int i = 0; i < action.length; i++) {
             castRew[i] = (int[])reward[i];
         }
-        return new PDIASample(p,castAct,castObs,castRew);
+        PDIASample ps = new PDIASample(p,castAct,castObs,castRew);
+        ps.setAnnealRate(anneal);
+        return ps;
     }
 
-    public static PDIASample sample( int[] nSymbols, Object[] action, Object[] observation, Object[] reward ) {
-        return BipartitePDIA.sample(new BipartitePDIA(nSymbols), action, observation, reward);
+    public static PDIASample sample( double anneal, int[] nSymbols, Object[] action, Object[] observation, Object[] reward ) {
+        return BipartitePDIA.sample(anneal,new BipartitePDIA(nSymbols), action, observation, reward);
     }
 
     /**
@@ -181,10 +185,10 @@ public class BipartitePDIA implements Serializable, PDIA {
      * @param data
      * @return An array of posterior samples from the Markov chain
      */
-    public static BipartitePDIA[] sample( int burnIn, int interval, int samples, int[] nSymbols, int[][]... data ) {
+    public static BipartitePDIA[] sample( double anneal, int burnIn, int interval, int samples, int[] nSymbols, int[][]... data ) {
         BipartitePDIA[] ps = new BipartitePDIA[samples];
         int i = 0;
-        for (PDIA p : BipartitePDIA.sample(nSymbols,data)) {
+        for (PDIA p : BipartitePDIA.sample(anneal,nSymbols,data)) {
             if (i < burnIn) {
                 System.out.println("Burn In Sample " + i + " of " + burnIn);
             }
@@ -426,25 +430,25 @@ public class BipartitePDIA implements Serializable, PDIA {
         }
     }
 
-    public void sampleOnce(int[][]... data) {
-        sampleTransitions(0,data);
-        RFs[0].sample();
-        sampleTransitions(1,data);
-        RFs[1].sample();
+    public void sampleOnce(double temp, int[][]... data) {
         sampleBeta(1.0);
+        sampleTransitions(temp,0,data);
+        RFs[0].sample();
+        sampleTransitions(temp,1,data);
+        RFs[1].sample();
         System.out.println(transitions[0].keySet().size() + "state/action pairs, "
                 + transitions[1].keySet().size() + "state/observation pairs, "
-                + states().size() + "states.");
+                + states().size() + "states, log likelihood = " + logLike);
     }
 
     /**
      * One sweep of sampling over the a-state to o-state transition matrix.
      * @param data
      */
-    private void sampleTransitions(int i, int[][]... data) {
+    private void sampleTransitions(double temp, int i, int[][]... data) {
         for (SinglePair p : randomPairArray(transitions[i].keySet())) {
             if (transitions[i].get(p) != null) {
-                sampleTransitions(i,p,data);
+                sampleTransitions(temp,i,p,data);
             }
             fixTransitions();
         }
@@ -457,7 +461,7 @@ public class BipartitePDIA implements Serializable, PDIA {
      * @param p The state/symbol pair to be sampled
      * @param data
      */
-    private void sampleTransitions(int i, SinglePair p, int[][]... data) {
+    private void sampleTransitions(double temp, int i, SinglePair p, int[][]... data) {
         int[] context = p.symbol();
         double cLogLik = logLike;
         Integer currentType = transitions[i].get(p);
@@ -473,7 +477,7 @@ public class BipartitePDIA implements Serializable, PDIA {
         count(data);
         double pLogLik = logLik();
 
-        if (Math.log(RNG.nextDouble()) < pLogLik - cLogLik) { // accept
+        if (RNG.nextDouble() < temp + (1-temp)*Math.exp(pLogLik - cLogLik)) { // accept
             RFs[i].unseat(currentType, context);
             RFs[i].seat(proposedType, context);
         } else { // reject
