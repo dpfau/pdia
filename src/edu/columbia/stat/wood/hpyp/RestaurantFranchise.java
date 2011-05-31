@@ -71,7 +71,7 @@ public class RestaurantFranchise implements Serializable {
         return getDontAdd(context).predictiveProbability(type);
     }
 
-    public HashMap<Integer, MutableDouble> predictiveProbabilityExisingTypes(int[] context) {
+    public HashMap<Integer, MutableDouble> predictiveProbabilityExistingTypes(int[] context) {
     	HashMap<Integer, MutableDouble> returnMap = new HashMap<Integer, MutableDouble>(root.tableMap.size() + 1);
         Restaurant r = getDontAdd(context);
         double cuSum = 0.0;

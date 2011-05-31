@@ -17,8 +17,7 @@ public class PDIASequence implements Serializable, Iterator<Pair>, Iterable<Pair
     public int[][][] data; // First index is type of data, second is line, third is position in line
     private int line;
     private int pos;
-    private Integer state;
-    private int[] current;
+    public Integer state;
     public boolean multi; // use SinglePair or MultiPair?
     private static final long serialVersionUID = 1L;
 
@@ -29,7 +28,6 @@ public class PDIASequence implements Serializable, Iterator<Pair>, Iterable<Pair
         pos  = 0;
         state = init;
         multi = data.length > 1;
-        if (multi) current = new int[data.length - 1];
     }
 
     public Iterator<Pair> iterator() {

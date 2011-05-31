@@ -152,7 +152,7 @@ public class PDIA_Dirichlet implements Serializable, PDIA {
     }
 
     public Integer transition(Pair p) {
-        return dMatrix.get(p);
+        return dMatrix.get((SinglePair)p);
     }
 
     public Integer transitionAndAdd(Pair p) {
@@ -277,6 +277,11 @@ public class PDIA_Dirichlet implements Serializable, PDIA {
     private void fixDMatrix() {
         HashSet<SinglePair> keysToDiscard = new HashSet<SinglePair>();
 
+        // Notice for future improvement: it might be worth creating another
+        // data structure which tracks which state/symbol pairs are observed
+        // *not* at the end of a line, and use *that* to remove keys from
+        // dMatrix.  This would insure that transition(state,symbol) could not
+        // return a value that is not returned by states()
         for (SinglePair p : dMatrix.keySet()) {
             int[] counts = cMatrix.get(p.state());
             if ((counts == null) || (counts[p.symbol(0)] == 0)) {
