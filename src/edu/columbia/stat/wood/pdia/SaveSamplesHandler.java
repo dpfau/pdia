@@ -48,9 +48,9 @@ public class SaveSamplesHandler implements SamplerUpdateHandler {
 			oos = new ObjectOutputStream(new GZIPOutputStream(new FileOutputStream(saveFile)));
 			oos.writeObject(pdias);
 		} catch (FileNotFoundException e) {
-			System.err.println("SamplerUpdateHandler: unable to write samples disk: " + e.getMessage());
+			System.err.println("SamplerUpdateHandler: unable to write samples to disk: " + e.getMessage());
 		} catch (IOException e) {
-			System.err.println("SamplerUpdateHandler: unable to write samples disk: " + e.getMessage());
+			System.err.println("SamplerUpdateHandler: unable to write samples to disk: " + e.getMessage());
 		} finally {
 			if (oos != null) {
 				try {
