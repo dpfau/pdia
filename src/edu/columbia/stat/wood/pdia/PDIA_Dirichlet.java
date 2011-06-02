@@ -264,10 +264,12 @@ public class PDIA_Dirichlet implements Serializable, PDIA {
         if (Math.log(RNG.nextDouble()) < pLogLik - cLogLik) { // accept
             rf.unseat(currentType, context);
             rf.seat(proposedType, context);
+            System.out.println("accept");
         } else { // reject
             cMatrix = oldCounts;
             logLike = cLogLik;
             dMatrix.put(p, currentType);
+            System.out.println("reject");
         }
     }
 
