@@ -6,7 +6,6 @@ import java.util.HashMap;
 public class Main {
 
 	public static void main(String[] args) throws FileNotFoundException, IOException {
-
 		if (args.length < 3) {
 			System.err.println("Insufficient arguments\nUsage: java Main <working-dir> <burn-in> <samples>");
 			System.exit(1);

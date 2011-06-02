@@ -20,6 +20,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.zip.GZIPInputStream;
 
 /**
  *
@@ -287,7 +288,70 @@ public class Util {
     	}
     }
 
-    	/*public static int[][] loadTokens(String path) {
-
-    }*/
+    
+    public static PDIA[] loadPDIAs(String filename) {
+    	PDIA[] pdias = null;
+		ObjectInputStream oos = null;
+		try {
+			oos = new ObjectInputStream(new GZIPInputStream(new FileInputStream(new File(filename))));
+			pdias = (PDIA[])oos.readObject();
+		} catch (FileNotFoundException e) {
+			System.err.println("Util.loadPDIAs: unable to read samples from disk: " + e.getMessage());
+		} catch (IOException e) {
+			System.err.println("Util.loadPDIAs: unable to read samples from disk: " + e.getMessage());
+		} catch (ClassNotFoundException e) {
+			System.err.println("Util.loadPDIAs: unable to read samples form disk: " + e.getMessage());
+		} finally {
+			if (oos != null) {
+				try {
+					oos.close();
+				} catch (IOException e) {
+					System.err.println("Util.loadPDIAs: error closing file: " + e.getMessage());
+				}
+			}
+		}
+		return pdias;
+    	
+    }
+    
+    public static double[][] score(String pdiaFile, String trainFile, String testFile) throws FileNotFoundException, IOException {
+    	boolean hasTest = testFile != null;
+    	HashMap<Integer,Integer> alphabet  = new HashMap<Integer,Integer>();
+    	int[][] train = Util.loadText(trainFile, alphabet);
+    	int trainSize = Util.totalLen(train);
+    	int[][] test = hasTest ? Util.loadText(testFile, alphabet) : null;
+    	int testSize = hasTest ? Util.totalLen(test) : 0;
+    	
+        PDIA_Dirichlet[] pdias = (PDIA_Dirichlet[])Util.loadPDIAs(pdiaFile);
+        if (pdias == null) {
+        	return new double[2][0];
+        }
+        int count = 0;
+        for(PDIA pdia : pdias) {
+        	if (pdia == null) break;
+        	count++;
+        }
+        
+        double[][] scores = new double[hasTest ? 2 : 1][count];
+        double[] trainProbs = new double[trainSize];
+        double[] testProbs = new double[testSize];
+        
+        for (int i = 0; i < count; i++) {
+        	updateMean(trainProbs, pdias[i].meanScore(0, 10, train), i+1);
+        	scores[0][i] = Util.scoreToLogLoss(trainProbs);
+        	if (hasTest) {
+        		updateMean(testProbs, pdias[i].meanScore(0, 10, train), i+1);
+        		scores[1][i] = Util.scoreToLogLoss(testProbs);
+        	}
+        }
+        
+        return scores;
+        
+    }
+    
+    private static void updateMean(double[] mean, double[] newData, int n) {
+    	for(int i = 0; i < mean.length; i++) {
+    		mean[i] = (mean[i]*(n-1) + newData[i])/n;
+    	}
+    }
 }

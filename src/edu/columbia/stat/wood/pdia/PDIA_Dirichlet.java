@@ -300,12 +300,7 @@ public class PDIA_Dirichlet implements Serializable, PDIA {
     }
 
     public double[] score(int init, int[][]... data) {
-        int totalLength = 0;
-        for (int i = 0; i < data[0].length; i++) {
-            totalLength += data[0][i].length;
-        }
-
-        double[] score = new double[totalLength];
+    	double[] score = new double[Util.totalLen(data[0])];
 
         int index = 0;
         for (Pair p : run(init,data)) {
@@ -316,17 +311,40 @@ public class PDIA_Dirichlet implements Serializable, PDIA {
             }
 
             int totalCount = Util.sum(counts);
-            score[(index++)] = ((counts[p.symbol(0)] + beta / nSymbols) / (totalCount + beta));
+            score[index++] = ((counts[p.symbol(0)] + beta / nSymbols) / (totalCount + beta));
             counts[p.symbol(0)]++;
         }
 
         return score;
     }
+    
+    // matlab friendly version
+    public double[] score(int init, Object[] data) {
+    	return score(init, Util.objectArrayTo2DIntArray(data));
+    }
+    
+    public double[] meanScore(int init, int trials, int[][]... data) {
+    	double[] score = new double[Util.totalLen(data[0])];
+        for (int i = 0; i < trials; i++) {
+            PDIA_Dirichlet copy = Util.<PDIA_Dirichlet>copy(this);
+            double[] d = copy.score(init, data);
+            Util.addArrays(score, d);
+        }
+        for (int i = 0; i < score.length; i++) {
+            score[i] /= trials;
+        }
+        return score;
+    }
+    
+    public double[] mMeanScore(int init, int trials, Object[] data) {
+    	return meanScore(init, trials, Util.objectArrayTo2DIntArray(data));
+    }
 
     /**
      * Same as above, but with predictions averaged over multiple PDIAs
      * We do things in this order because we need to average single-datum
-     * probabilities before taking the sum of log probabilities.
+     * probabilities before taking the sum of log probabilities. Ignores
+     * any trailing null pointers in <tt>ps</tt>.
      * 
      * @param ps Array of PDIA posterior samples
      * @param init
@@ -336,21 +354,27 @@ public class PDIA_Dirichlet implements Serializable, PDIA {
     public static double[] score(PDIA_Dirichlet[] ps, int init, int[][]... data) {
         int n = 10;
         double[] score = new double[Util.totalLen(data[0])];
+        int count = 0;
         for (PDIA_Dirichlet pdia : ps) {
+        	if (pdia == null) {
+        		break;
+        	}
             for (int i = 0; i < n; i++) {
                 PDIA_Dirichlet copy = Util.<PDIA_Dirichlet>copy(pdia);
-                Util.addArrays(score, copy.score(init, data));
+                double[] d = copy.score(init, data);
+                Util.addArrays(score, d);
             }
+            count++;
         }
 
         for (int i = 0; i < score.length; i++) {
-            score[i] /= (n*ps.length);
+            score[i] /= (n*count);
         }
         return score;
     }
     
     // Matlab friendly version
-    public static double[] mscore(PDIA_Dirichlet[] ps, int init, Object[] data) {
+    public static double[] score(PDIA_Dirichlet[] ps, int init, Object[] data) {
     	return score(ps, init, Util.objectArrayTo2DIntArray(data));
     }
 
