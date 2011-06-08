@@ -49,6 +49,18 @@ public class CategoricalDistribution implements Distribution<Integer> {
         return probs.length - 1;
     }
 
+    // Avoid the overhead of object instantiation for a distribution you'll only sample from once
+    public static Integer sample( double[] pi ) {
+        double sum = Util.sum( pi );
+        double samp = sum * rng.nextDouble();
+        double cumsum = 0;
+        for ( int i = 0; i < pi.length; i++ ) {
+            cumsum += pi[i];
+            if ( samp < cumsum ) return i;
+        }
+        return pi.length - 1;
+    }
+
     public double[] parameters() {
         return probs;
     }
