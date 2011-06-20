@@ -1,4 +1,4 @@
-function [dat alph] = loadByChar(path)
+function [dat alph java_dat] = loadByChar(path)
 
 fid = fopen(path);
 rawDat = fread(fid,inf);
@@ -29,3 +29,8 @@ for i = 1:length(rawDat);
     end
 end
             
+dummy = java.lang.Object();
+java_dat = java.lang.reflect.Array.newInstance(dummy.getClass(), numel(dat));
+for i = 1:numel(dat)
+    edu.columbia.stat.wood.pdia.Util.assignIntArray(java_dat, i-1, dat{i});
+end

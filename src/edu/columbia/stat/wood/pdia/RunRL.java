@@ -29,4 +29,5 @@ public class RunRL {
 			System.out.println("SingleMachinePrediction = " + Util.scoreToLogLoss(score));
 		}
 	}
+
 }

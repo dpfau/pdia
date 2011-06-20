@@ -111,13 +111,15 @@ public class PDIA_DMM2 implements Serializable, PDIA {
      * @param data
      * @return The iterator over PDIA
      */
-    public static PDIASample sample(int[] nSymbols, int[][]... data) {
+    public static PDIASample sample(double anneal, int[] nSymbols, int[][]... data) {
         assert nSymbols.length == data.length : "Number of data types is inconsistent!";
-        return new PDIASample(new PDIA_DMM2(nSymbols),data);
+        PDIASample ps = new PDIASample(new PDIA_DMM2(nSymbols),data);
+        ps.setAnnealRate(anneal);
+        return ps;
     }
 
     //Hacked version of the above to make Matlab scripts work
-    public static PDIASample sample( PDIA_DMM2 p, Object[] action, Object[] observation, Object[] reward ) {
+    public static PDIASample sample( double anneal, PDIA_DMM2 p, Object[] action, Object[] observation, Object[] reward ) {
         int[][] castAct = new int[action.length][];
         for (int i = 0; i < action.length; i++) {
             castAct[i] = (int[])action[i];
@@ -130,11 +132,13 @@ public class PDIA_DMM2 implements Serializable, PDIA {
         for (int i = 0; i < action.length; i++) {
             castRew[i] = (int[])reward[i];
         }
-        return new PDIASample(p,castAct,castObs,castRew);
+        PDIASample ps = new PDIASample(p,castAct,castObs,castRew);
+        ps.setAnnealRate(anneal);
+        return ps;
     }
 
-    public static PDIASample sample( int[] nSymbols, Object[] action, Object[] observation, Object[] reward ) {
-        return PDIA_DMM2.sample(new PDIA_DMM2(nSymbols), action, observation, reward);
+    public static PDIASample sample( double anneal, int[] nSymbols, Object[] action, Object[] observation, Object[] reward ) {
+        return PDIA_DMM2.sample(anneal, new PDIA_DMM2(nSymbols), action, observation, reward);
     }
 
     /**
@@ -146,10 +150,10 @@ public class PDIA_DMM2 implements Serializable, PDIA {
      * @param data
      * @return An array of posterior samples from the Markov chain
      */
-    public static PDIA_DMM2[] sample(int burnIn, int interval, int samples, int[] nSymbols, int[][]... data) {
+    public static PDIA_DMM2[] sample(double anneal, int burnIn, int interval, int samples, int[] nSymbols, int[][]... data) {
         PDIA_DMM2[] ps = new PDIA_DMM2[samples];
         int i = 0;
-        for (PDIA p : PDIA_DMM2.sample(nSymbols,data)) {
+        for (PDIA p : PDIA_DMM2.sample(anneal,nSymbols,data)) {
             if (i < burnIn) {
                 System.out.println("Burn In Sample " + i + " of " + burnIn);
             }
@@ -365,22 +369,22 @@ public class PDIA_DMM2 implements Serializable, PDIA {
         }
     }
 
-    public void sampleOnce(int[][]... data) {
-        sampleD(data);
-        rf.sample();
+    public void sampleOnce(double temp, int[][]... data) {
         sampleBeta(1.0);
+        sampleD(temp, data);
+        rf.sample();
         System.out.println(dMatrix.keySet().size() + " state/action/observation triples, "
-                + states().size() + " states.");
+                + states().size() + " states, log likelihood = " + logLike);
     }
 
     /**
      * One sweep of sampling over the transition matrix.
      * @param data
      */
-    private void sampleD(int[][]... data) {
+    private void sampleD(double temp, int[][]... data) {
         for (MultiPair p : randomPairArray(dMatrix)) {
             if (dMatrix.get(p) != null) {
-                sampleD(p,data);
+                sampleD(temp,p,data);
             }
             fixDMatrix();
         }
@@ -391,7 +395,7 @@ public class PDIA_DMM2 implements Serializable, PDIA {
      * @param p The state/symbol pair to be sampled
      * @param data
      */
-    private void sampleD(MultiPair p, int[][]... data) {
+    private void sampleD(double temp, MultiPair p, int[][]... data) {
         int[] context = p.symbol();
         double cLogLik = logLike;
         Integer currentType = dMatrix.get(p);
@@ -408,7 +412,7 @@ public class PDIA_DMM2 implements Serializable, PDIA {
         count(data);
         double pLogLik = logLik();
 
-        if (Math.log(RNG.nextDouble()) < pLogLik - cLogLik) { // accept
+        if (RNG.nextDouble() < temp + (1-temp)*Math.exp(pLogLik - cLogLik)) { // accept, with annealing hack
             rf.unseat(currentType, reverse_context);
             rf.seat(proposedType, reverse_context);
         } else { // reject

@@ -58,7 +58,7 @@ public interface PDIA {
      * Given training data, run one sweep of the MCMC sampler
      * @param data
      */
-    public void sampleOnce(int[][]... data);
+    public void sampleOnce(double temp, int[][]... data);
 
     /**
      * @return The joint log likelihood of the model and the data

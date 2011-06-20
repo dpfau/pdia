@@ -222,7 +222,7 @@ public class PDIA_Dirichlet implements Serializable, PDIA {
         }
     }
 
-    public void sampleOnce(int[][]... data) {
+    public void sampleOnce(double temp, int[][]... data) {
         sampleD(data);
         rf.sample();
         sampleBeta(1.0);
@@ -264,10 +264,12 @@ public class PDIA_Dirichlet implements Serializable, PDIA {
         if (Math.log(RNG.nextDouble()) < pLogLik - cLogLik) { // accept
             rf.unseat(currentType, context);
             rf.seat(proposedType, context);
+            System.out.println("accept");
         } else { // reject
             cMatrix = oldCounts;
             logLike = cLogLik;
             dMatrix.put(p, currentType);
+            System.out.println("reject");
         }
     }
 
