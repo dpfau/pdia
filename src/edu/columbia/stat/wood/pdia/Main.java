@@ -15,12 +15,12 @@ public class Main {
 //		ObjectOutputStream oos = null;
 		HashMap<Integer,Integer> alphabet  = new HashMap<Integer,Integer>();
 
-		int[][] train = Util.loadText(args[0] + "data/aiw_full.test", alphabet);
+		int[][] train = Util.loadText(args[0] + "data/aiw_full.test", alphabet, 100);
 		int[][] test = Util.loadText(args[0] + "data/aiw_full.train", alphabet);
 		
 		int burnin =  Integer.parseInt(args[1]);
 		int samples = Integer.parseInt(args[2]);
-		SaveSamplesHandler updater = new SaveSamplesHandler(new File(args[0] + "results/PDIA_DMMs.gz"));
+		SaveSamplesHandler updater = new SaveSamplesHandler(new File(args[0] + "results/PDIA_DMMs.gz"), new File(args[0] + "results/PDIA_Results.dat"), train, test);
 		int updateInterval = Math.max(1, (int)(.5 + samples/10.0));
 //		try {
 //			oos = new ObjectOutputStream(new GZIPOutputStream(new FileOutputStream(objs)));

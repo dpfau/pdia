@@ -8,6 +8,8 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
+import java.io.PrintWriter;
+import java.util.Arrays;
 import java.util.zip.GZIPOutputStream;
 
 /**
@@ -19,12 +21,30 @@ import java.util.zip.GZIPOutputStream;
  */
 public class SaveSamplesHandler implements SamplerUpdateHandler {
 
-	File saveFile;
-	File backupFile;
+	File samplesFile;
+	File samplesBackupFile;
+	File resultsFile;
+	File resultsBackupFile;
 	
-	public SaveSamplesHandler(File file) {
-		saveFile = file;
-		backupFile = new File(file.getAbsolutePath() + ".backup");
+	int[][] train;
+	int[][] test;
+	int trainSize; 
+	int testSize;
+	
+	// for matlab 
+	public SaveSamplesHandler(File sampFile, File resFile, Object[] train, Object[] test) {
+		this(sampFile, resFile, Util.objectArrayTo2DIntArray(train), Util.objectArrayTo2DIntArray(test));
+	}
+	
+	public SaveSamplesHandler(File sampFile, File resFile, int[][] train, int[][] test) {
+		samplesFile       = sampFile;
+		resultsFile       = resFile;
+		samplesBackupFile = new File(sampFile.getAbsolutePath() + ".backup");
+		resultsBackupFile = new File(resFile.getAbsolutePath() + ".backup");
+		this.train = train;
+		this.test  = test; 
+		trainSize  = Util.totalLen(train);
+		testSize   = Util.totalLen(test);
 	}
 	/**
 	 * Write the samples to disk.  
@@ -34,18 +54,25 @@ public class SaveSamplesHandler implements SamplerUpdateHandler {
 	public void update(PDIA[] pdias, int count) {
 		System.out.println("Saving " + count + " PDIAs to disk");
 		// in necessary, backup file first
-		if (saveFile.exists()) {
+		if (samplesFile.exists()) {
 			try {
-				Util.copyFile(saveFile, backupFile);
+				Util.copyFile(samplesFile, samplesBackupFile);
+			} catch (IOException e) {
+				System.err.println("Unable to back up PDIA file first: " + e.getMessage());
+			}
+		}
+		if (resultsFile.exists()) {
+			try {
+				Util.copyFile(resultsFile, resultsBackupFile);
 			} catch (IOException e) {
 				System.err.println("Unable to back up PDIA file first: " + e.getMessage());
 			}
 		}
 		
-		// now write out
+		// write out samples
 		ObjectOutputStream oos = null;
 		try {
-			oos = new ObjectOutputStream(new GZIPOutputStream(new FileOutputStream(saveFile)));
+			oos = new ObjectOutputStream(new GZIPOutputStream(new FileOutputStream(samplesFile)));
 			oos.writeObject(pdias);
 		} catch (FileNotFoundException e) {
 			System.err.println("SamplerUpdateHandler: unable to write samples to disk: " + e.getMessage());
@@ -56,7 +83,32 @@ public class SaveSamplesHandler implements SamplerUpdateHandler {
 				try {
 					oos.close();
 				} catch (IOException e) {
-					System.err.println("SamplerUpdateHandler: error closing file: " + e.getMessage());
+					System.err.println("SamplerUpdateHandler: error closing sample file: " + e.getMessage());
+				}
+			}
+		}
+		// write out results
+		PrintWriter pw;
+		try {
+			pw = new PrintWriter(resultsFile);
+			double[][] scores = Util.score((PDIA_Dirichlet[])pdias, train, trainSize, test, testSize);
+			for (double[] s : scores) {
+				pw.println(Arrays.toString(s));	
+			}
+			pw.flush();
+			//oos = new ObjectOutputStream(new FileOutputStream(resultsFile));
+			//oos.writeObject(Util.score((PDIA_Dirichlet[])pdias, train, trainSize, test, testSize));
+			
+		} catch (FileNotFoundException e) {
+			System.err.println("SamplerUpdateHandler: unable to write results to disk: " + e.getMessage());
+//		} catch (IOException e) {
+//			System.err.println("SamplerUpdateHandler: unable to write results to disk: " + e.getMessage());
+		} finally {
+			if (oos != null) {
+				try {
+					oos.close();
+				} catch (IOException e) {
+					System.err.println("SamplerUpdateHandler: error closing results file: " + e.getMessage());
 				}
 			}
 		}
