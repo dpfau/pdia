@@ -121,6 +121,14 @@ public class Util {
         return y;
     }
 
+    public static double[] log( double[] x ) {
+        double[] y = new double[x.length];
+        for ( int i = 0; i < x.length; i++ ) {
+            y[i] = Math.log(x[i]);
+        }
+        return y;
+    }
+
     // Unsigned Stirling numbers of the first kind
     public static int stirling( int n, int k ) {
         if ( ( n > 0 && k == 0 ) || k > n ) return 0;
@@ -188,7 +196,7 @@ public class Util {
         symbols[symbols.length - 1] = NEWLINE;
         len++;
 
-        assert len == symbols.length;
+        assert len == numLines;
 
         int[][] data = new int[numLines][];
         int i = 0;
