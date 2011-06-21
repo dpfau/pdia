@@ -111,7 +111,7 @@ public class PDIA_Dirichlet implements Serializable, PDIA {
                 ps[(i-burnIn)/interval] = (PDIA_Dirichlet)Util.copy(p);
                 System.out.println("Wrote sample " + ((i-burnIn)/interval+1) + " of " + samples);
             }
-            if (h != null && i > burnIn && (i-burnIn) % (updateInterval*interval) == 0) {
+            if (h != null && i > burnIn && (i-burnIn+interval) % (updateInterval*interval) == 0) {
                h.update(ps, (i - burnIn)/interval+1);
             }
             i++;
@@ -372,7 +372,7 @@ public class PDIA_Dirichlet implements Serializable, PDIA {
     }
     
     // Matlab friendly version
-    public static double[] score(PDIA_Dirichlet[] ps, int init, Object[] data) {
+    public static double[] mscore(PDIA_Dirichlet[] ps, int init, Object[] data) {
     	return score(ps, init, Util.objectArrayTo2DIntArray(data));
     }
 

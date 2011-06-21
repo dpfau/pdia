@@ -62,9 +62,9 @@ public class Util {
 
     public static <E> Map<E,int[]> intArrayMapCopy(Map<E,int[]> map) {
         Map<E,int[]> copy = null;
-        if (map instanceof HashMap) {
+        if (map instanceof HashMap<?,?>) {
             copy = new HashMap<E,int[]>();
-        } else if (map instanceof TreeMap) {
+        } else if (map instanceof TreeMap<?,?>) {
             copy = new TreeMap<E,int[]>();
         }
         for (E e : map.keySet()) {
@@ -79,9 +79,9 @@ public class Util {
     // OK, this is getting slightly ridiculous, but so it goes.
     public static <E> Map<E,int[][]> intTwoDArrayMapCopy(Map<E,int[][]> map) {
         Map<E,int[][]> copy = null;
-        if (map instanceof HashMap) {
+        if (map instanceof HashMap<?,?>) {
             copy = new HashMap<E,int[][]>();
-        } else if (map instanceof TreeMap) {
+        } else if (map instanceof TreeMap<?,?>) {
             copy = new TreeMap<E,int[][]>();
         }
         for (E e : map.keySet()) {
@@ -197,17 +197,21 @@ public class Util {
 
 	private static final int NEWLINE = -1;
 	
-    public static int[][] loadText(String path, HashMap<Integer,Integer> alphabet) throws FileNotFoundException, IOException {
+	public static int[][] loadText(String path, HashMap<Integer,Integer> alphabet) throws FileNotFoundException, IOException {
+		return loadText(path, alphabet, Integer.MAX_VALUE);
+	}
+		
+	public static int[][] loadText(String path, HashMap<Integer,Integer> alphabet, int maxLen) throws FileNotFoundException, IOException {
         File in = new File(path);
         alphabet.put((int)'\n', NEWLINE); // assign newline a special value
         BufferedInputStream bis = new BufferedInputStream(new FileInputStream(in));
-        int[] symbols = new int[(int) in.length() + 1]; // +1 so we can add a newline at the end
+        int[] symbols = new int[(int) (Math.min(in.length(), maxLen) + 1)]; // +1 so we can add a newline at the end
 
         int ind = 0;
         int b;
         int len = 0;
         int numLines = 1;
-        while ((b = bis.read()) > -1) {
+        while ((b = bis.read()) > -1 && (ind + numLines - 1) < maxLen) {
             Integer c = alphabet.get(b);
             if (c != null) {
                 symbols[(ind++)] = c;
@@ -315,14 +319,26 @@ public class Util {
     }
     
     public static double[][] score(String pdiaFile, String trainFile, String testFile) throws FileNotFoundException, IOException {
+    	return score(pdiaFile, trainFile, Integer.MAX_VALUE, testFile);
+    }
+    
+    
+    public static double[][] score(String pdiaFile, String trainFile, int maxLen, String testFile) throws FileNotFoundException, IOException {
     	boolean hasTest = testFile != null;
     	HashMap<Integer,Integer> alphabet  = new HashMap<Integer,Integer>();
-    	int[][] train = Util.loadText(trainFile, alphabet);
+    	int[][] train = Util.loadText(trainFile, alphabet, maxLen);
     	int trainSize = Util.totalLen(train);
     	int[][] test = hasTest ? Util.loadText(testFile, alphabet) : null;
     	int testSize = hasTest ? Util.totalLen(test) : 0;
-    	
+    	 
         PDIA_Dirichlet[] pdias = (PDIA_Dirichlet[])Util.loadPDIAs(pdiaFile);
+        return score(pdias, train, trainSize, test, testSize);
+        
+    }
+    
+    
+    public static double[][] score(PDIA_Dirichlet[] pdias, int[][] train, int trainSize, int test[][], int testSize) {
+    	boolean hasTest = test != null;
         if (pdias == null) {
         	return new double[2][0];
         }
@@ -340,7 +356,7 @@ public class Util {
         	updateMean(trainProbs, pdias[i].meanScore(0, 10, train), i+1);
         	scores[0][i] = Util.scoreToLogLoss(trainProbs);
         	if (hasTest) {
-        		updateMean(testProbs, pdias[i].meanScore(0, 10, train), i+1);
+        		updateMean(testProbs, pdias[i].meanScore(0, 10, test), i+1);
         		scores[1][i] = Util.scoreToLogLoss(testProbs);
         	}
         }
