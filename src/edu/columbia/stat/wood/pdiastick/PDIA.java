@@ -122,6 +122,8 @@ public class PDIA {
             if (dMatrix.containsKey(t)) {
                 int state = dMatrix.get(t);
                 int currIdx = -1;
+                int newState = gensym.sample();
+                double logProbNewState = newLogLik(t, newState, data);
                 double[] logProb = new double[states.length + 1];
                 int[][] n2 = Util.copy(nCustomers);
                 for (int i = 0; i < logProb.length - 1; i++) {
@@ -135,13 +137,13 @@ public class PDIA {
                 while (logProb.length < states.length + 1) { // Since calling newLogLike can add new states, continue assigning t to different states until we don't add any new ones.
                     double[] newProb = new double[states.length + 1];
                     System.arraycopy(logProb, 0, newProb, 0, logProb.length - 1);
-                    for (int i = logProb.length; i < newProb.length - 1; i++) {
+                    for (int i = logProb.length - 1; i < newProb.length - 1; i++) {
                         newProb[i] = Math.log(alpha0 * sticks[i]) + newLogLik(t, states[i], data);
                     }
                     logProb = newProb;
                 }
                 double b_u = 1 - Util.sum(sticks);
-                logProb[logProb.length - 1] = Math.log(alpha0 * b_u) + newLogLik(t, gensym.sample(), data);
+                logProb[logProb.length - 1] = Math.log(alpha0 * b_u) + logProbNewState;
 
                 // Avoid numerical underflow
                 double max = Double.NEGATIVE_INFINITY;
@@ -159,7 +161,8 @@ public class PDIA {
                 int idx = CategoricalDistribution.sample(prob);
                 nCustomers[currIdx][t.get(1)]--;
                 if (idx == states.length) {
-                    addState(b_u, dMatrix.get(t), t.get(1));
+                    dMatrix.put(t, newState);
+                    addState(b_u, newState, t.get(1));
                 } else {
                     dMatrix.put(t, states[idx]);
                     if (nTables[idx][t.get(1)] == 0) {
@@ -169,9 +172,7 @@ public class PDIA {
                 nCustomers[idx][t.get(1)]++;
 
                 // Clear unused states
-                if (idx != states.length - 1) {
-                    count(data);
-                }
+                count(data);
                 clearStates();
 
                 // Sample number of tables in lower level restaurants
@@ -186,9 +187,9 @@ public class PDIA {
                         }
                     }
                 }
-                System.out.println(sticks.length + ": " + logLik() + ", " + PDIA.averageScore(score(test)));
                 count(data);
                 clearStates();
+                System.out.println(sticks.length + ": " + logProb[idx] + "," + logLik() + ", " + PDIA.averageScore(score(test)));
             }
         }
 
@@ -344,9 +345,12 @@ public class PDIA {
         try {
             int[][] train = Util.loadText("/Users/davidpfau/Documents/Wood Group/pdia_git/data/aiw.train", alphabet);
             int[][] test  = Util.loadText("/Users/davidpfau/Documents/Wood Group/pdia_git/data/aiw.test",  alphabet);
+            //int[][] data = Util.loadText("/Users/davidpfau/Documents/Wood Group/pdia_git/data/even.dat",alphabet);
+            //int[][] train = {data[0]};
+            //int[][] test  = {data[1]};
             PDIA p = new PDIA(alphabet.size());
             p.count(train);
-            for (int i = 0; i < 10; i++) {
+            for (int i = 0; i < 1000; i++) {
                 p.sample(train,test);
             }
         } catch (Exception e) {
