@@ -114,6 +114,22 @@ public class PDIA {
         }
     }
 
+    protected void sampleBeta(double var) {
+        double cBeta = beta;
+        double pBeta = cBeta + Distribution.rng.nextGaussian() * var;
+        if (pBeta <= 0) {
+            return;
+        }
+
+        double cLogLik = logLik();
+        beta = pBeta;
+        double pLogLik = logLik();
+        double r = Math.exp(pLogLik - cLogLik - pBeta + cBeta);
+        if (Distribution.rng.nextDouble() >= r) {
+            beta = cBeta;
+        }
+    }
+
     public void sample(int[][] data, int[][] test) {
         Object[] os = Util.randArray(dMatrix.keySet());
         for (Object o : os) {
