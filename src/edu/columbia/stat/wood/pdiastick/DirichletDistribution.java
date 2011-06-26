@@ -28,12 +28,15 @@ public class DirichletDistribution implements Distribution<CategoricalDistributi
     }
 
     public double logProbability( CategoricalDistribution x ) {
-        double[] probs = x.parameters();
+        return logProbability( x.parameters() );
+    }
+
+    public double logProbability( double[] probs ) {
         assert probs.length == params.length : "Data has the wrong number of categories!";
         double logProb = Gamma.logGamma( Util.sum( params ) );
         for ( int i = 0; i < probs.length; i++ ) {
-            logProb += ( params[i] - 1 ) * Math.log( probs[i] );
-            logProb -= Gamma.logGamma( params[i] );
+            logProb += ( params[i] - 1 ) * Math.log( probs[i] )
+                    - Gamma.logGamma( params[i] );
         }
         return logProb;
     }

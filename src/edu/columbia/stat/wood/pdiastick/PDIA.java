@@ -19,15 +19,16 @@ public class PDIA {
     private HashMap<Integer, int[]> cMatrix;
     private HashMap<Tuple, Integer> dMatrix = new HashMap<Tuple, Integer>();
     private int nsymb;
-    public double gamma = 1;
-    public double alpha0 = 1;
-    public double beta = 1;
+    public double alpha = 1; // Top level concentration
+    public double gamma = 0.1; // Top level discount
+    public double alpha0 = 1; // Lower level concentration
+    public double gamma0 = 0.1; // Lower level discount
+    public double beta = 1; // Emission distribution concentration
     private int[] states = new int[0];
     private int[][] nTables = new int[0][]; // number of tables serving a dish in a restaurant in HDP sampling scheme
     private int[][] nCustomers = new int[0][]; // number of customers in each restaurant eating a dish
     private double[] sticks = new double[0]; // explicit stick lengths for top-level DP
     private GenSym gensym = new GenSym();
-    private DirichletDistribution betaDist = new DirichletDistribution(new double[]{1, gamma});
 
     public PDIA(int nsymb) {
         this.nsymb = nsymb;
@@ -95,14 +96,19 @@ public class PDIA {
         nTables[k][j] = CategoricalDistribution.sample(prob) + 1;
     }
 
-    public void sample_sticks() {
+    // Construct the posterior probability distribution of stick lengths given the number of tables serving each dish
+    private DirichletDistribution stick_params() {
         double[] params = new double[nTables.length + 1];
         for (int i = 0; i < nTables.length; i++) {
-            params[i] = Util.sum(nTables[i]);
+            params[i] = Util.sum(nTables[i]) - gamma;
         }
-        params[nTables.length] = gamma;
-        DirichletDistribution d = new DirichletDistribution(params);
-        sticks = Util.delete(d.sample().parameters(), params.length - 1, params.length);
+        params[nTables.length] = alpha + nTables.length * gamma;
+        return new DirichletDistribution( params );
+    }
+
+    public void sample_sticks() {
+        DirichletDistribution d = stick_params();
+        sticks = Util.delete(d.sample().parameters(), nTables.length, nTables.length + 1);
         for (int i = 0; i < sticks.length; i++) {
             if (sticks[i] == 0.0) {
                 sticks = Util.delete(sticks, i, i + 1);
@@ -114,20 +120,43 @@ public class PDIA {
         }
     }
 
-    protected void sampleBeta(double var) {
-        double cBeta = beta;
-        double pBeta = cBeta + Distribution.rng.nextGaussian() * var;
-        if (pBeta <= 0) {
-            return;
-        }
+    private interface Hyperparameter {
+        double likelihood();
+        double[] value();
+        void change();
+        void set( double[] value );
+    }
 
-        double cLogLik = logLik();
-        beta = pBeta;
-        double pLogLik = logLik();
-        double r = Math.exp(pLogLik - cLogLik - pBeta + cBeta);
+    // Generic function for doing Metropolis sampling for hyperparameters
+    private void metropolisUpdate(Hyperparameter hp) {
+        double[] cValue = hp.value();
+        double cLogLik = hp.likelihood(); // likelihood of current value
+        hp.change();
+        double pLogLik = hp.likelihood(); // likelhood of proposed value
+        double r = Math.exp(pLogLik - cLogLik);
         if (Distribution.rng.nextDouble() >= r) {
-            beta = cBeta;
+            hp.set(cValue);
         }
+    }
+
+    protected void sampleBeta(final double var) {
+        metropolisUpdate( new Hyperparameter() {
+            public double likelihood() { return logLik() - beta; }
+            public double[] value() { return new double[]{ beta }; }
+            public void change() {
+                double pBeta = beta + Distribution.rng.nextGaussian() * var;
+                if ( pBeta > 0 ) beta = pBeta;
+            }
+            public void set( double[] value ) { beta = value[0]; }
+        } );
+    }
+
+    protected void sampleTopHyperparams(final double var) {
+
+    }
+
+    protected void sampleBottomHyperparams(double var) {
+        
     }
 
     public void sample(int[][] data, int[][] test) {
@@ -142,24 +171,35 @@ public class PDIA {
                 double logProbNewState = newLogLik(t, newState, data);
                 double[] logProb = new double[states.length + 1];
                 int[][] n2 = Util.copy(nCustomers);
-                for (int i = 0; i < logProb.length - 1; i++) {
-                    int n_ij = n2[i][t.get(1)];
+                int[][] m2 = Util.copy(nTables);
+                int totalTables = 0;
+                for (int i = 0; i < nTables.length; i++) {
                     if (states[i] == state) {
-                        n_ij--;
+                        n2[i][t.get(1)]--;
+                        if (n2[i][t.get(1)] < m2[i][t.get(1)]) {
+                            m2[i][t.get(1)] = n2[i][t.get(1)];
+                        }
                         currIdx = i;
                     }
-                    logProb[i] = Math.log(n_ij + alpha0 * sticks[i]) + newLogLik(t, states[i], data);
+                    totalTables += m2[i][t.get(1)];
+                }
+                for (int i = 0; i < logProb.length - 1; i++) {
+                    int n_ij = n2[i][t.get(1)];
+                    int m_ij = m2[i][t.get(1)];
+                    logProb[i] = Math.log(n_ij - gamma0 * m_ij
+                            + (alpha0 + gamma0 * totalTables) * sticks[i])
+                            + newLogLik(t, states[i], data);
                 }
                 while (logProb.length < states.length + 1) { // Since calling newLogLike can add new states, continue assigning t to different states until we don't add any new ones.
                     double[] newProb = new double[states.length + 1];
                     System.arraycopy(logProb, 0, newProb, 0, logProb.length - 1);
                     for (int i = logProb.length - 1; i < newProb.length - 1; i++) {
-                        newProb[i] = Math.log(alpha0 * sticks[i]) + newLogLik(t, states[i], data);
+                        newProb[i] = Math.log(alpha0 + gamma0 * totalTables) + Math.log(sticks[i]) + newLogLik(t, states[i], data);
                     }
                     logProb = newProb;
                 }
                 double b_u = 1 - Util.sum(sticks);
-                logProb[logProb.length - 1] = Math.log(alpha0 * b_u) + logProbNewState;
+                logProb[logProb.length - 1] = Math.log(alpha0 + gamma0 * totalTables) + Math.log(b_u) + logProbNewState;
 
                 // Avoid numerical underflow
                 double max = Double.NEGATIVE_INFINITY;
@@ -181,9 +221,6 @@ public class PDIA {
                     addState(b_u, newState, t.get(1));
                 } else {
                     dMatrix.put(t, states[idx]);
-                    if (nTables[idx][t.get(1)] == 0) {
-                        nTables[idx][t.get(1)] = 1;
-                    }
                 }
                 nCustomers[idx][t.get(1)]++;
 
@@ -203,14 +240,17 @@ public class PDIA {
                         }
                     }
                 }
+                if (Distribution.rng.nextDouble() < .01) {
+                    // Sample stick lengths for top-level restaurant
+                    sample_sticks();
+                }
+                sampleBeta(1.0);
+                System.out.println(beta);
                 count(data);
                 clearStates();
-                System.out.println(sticks.length + ": " + logProb[idx] + "," + logLik() + ", " + PDIA.averageScore(score(test)));
+                System.out.println(sticks.length + ": " + logLik() + ", " + PDIA.averageScore(score(test)));
             }
         }
-
-        // Sample stick lengths for top-level restaurant
-        sample_sticks();
     }
 
     private void clearStates() {
@@ -251,6 +291,7 @@ public class PDIA {
     }
 
     private void addState(double b_u, int state, int symbol) {
+        DirichletDistribution betaDist = new DirichletDistribution(new double[]{1 - gamma, alpha + gamma * states.length});
         double b = betaDist.sample().probability(0);
         states = Util.append(states, state);
         sticks = Util.append(sticks, b_u * b);
