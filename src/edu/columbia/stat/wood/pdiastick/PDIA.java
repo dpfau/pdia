@@ -19,10 +19,10 @@ public class PDIA {
     private HashMap<Integer, int[]> cMatrix;
     private HashMap<Tuple, Integer> dMatrix = new HashMap<Tuple, Integer>();
     private int nsymb;
-    public double alpha = 1; // Top level concentration
-    public double gamma = 0.1; // Top level discount
-    public double alpha0 = 1; // Lower level concentration
-    public double gamma0 = 0.1; // Lower level discount
+    public double alpha = 10; // Top level concentration
+    public double gamma = 0.8; // Top level discount
+    public double alpha0 = 10; // Lower level concentration
+    public double gamma0 = 0.8; // Lower level discount
     public double beta = 1; // Emission distribution concentration
     private int[] states = new int[0];
     private int[][] nTables = new int[0][]; // number of tables serving a dish in a restaurant in HDP sampling scheme
@@ -83,6 +83,23 @@ public class PDIA {
             logLik -= Gamma.logGamma(Util.sum(arr) + beta) - lgb;
         }
         return logLik;
+    }
+
+    // Log likelihood of the table arrangement for restaurant r
+    public double logLikTables( int r ) {
+        assert r >= 0 && r < nsymb : "Not a recognized restaurant!";
+        double logLik = Gamma.logGamma( alpha0 ) - Gamma.logGamma( alpha0/gamma0 );
+        int totalTables = 0;
+        int totalCustomers = 0;
+        for (int i = 0; i < nCustomers.length; i++) {
+            totalTables += nTables[i][r];
+            totalCustomers += nCustomers[i][r];
+            logLik += Gamma.logGamma( nCustomers[i][r] - nTables[i][r] * gamma0 )
+                    - Gamma.logGamma( nTables[i][r] * ( 1 - gamma0 ) );
+        }
+        return logLik + totalTables * Math.log( gamma0 )
+                      + Gamma.logGamma( alpha0/gamma0 + totalTables )
+                      - Gamma.logGamma( alpha0 + totalCustomers );
     }
 
     public void sample_tables(int j, int k) {
@@ -152,11 +169,50 @@ public class PDIA {
     }
 
     protected void sampleTopHyperparams(final double var) {
+        metropolisUpdate( new Hyperparameter() {
+            public double likelihood() {
+                return stick_params().logProbability( Util.append( sticks, 1 - Util.sum(sticks) ) )
+                        - alpha + Math.log(alpha); // Likelihood, exponential prior, Hastings correction for lognormal proposal
+            }
 
+            public double[] value() { return new double[]{ alpha, gamma }; }
+
+            public void change() {
+                alpha = Math.exp( Math.log(alpha) + Distribution.rng.nextGaussian() * var ); // lognormal proposal
+                double pGamma = gamma + 0.1 * Distribution.rng.nextGaussian() * var;
+                if ( pGamma >= 0 && pGamma < 1 ) gamma = pGamma;
+            }
+
+            public void set( double[] value ) {
+                alpha = value[0];
+                gamma = value[1];
+            }
+        } );
     }
 
-    protected void sampleBottomHyperparams(double var) {
-        
+    protected void sampleBottomHyperparams(final double var) {
+        metropolisUpdate( new Hyperparameter() {
+            public double likelihood() {
+                double logLik = 0;
+                for ( int i = 0; i < nsymb; i++ ) {
+                    logLik += logLikTables(i);
+                }
+                return logLik - alpha0 + Math.log(alpha0);
+            }
+
+            public double[] value() { return new double[]{ alpha0, gamma0 }; }
+
+            public void change() {
+                alpha0 = Math.exp( Math.log(alpha0) + Distribution.rng.nextGaussian() * var );
+                double pGamma = gamma0 + 0.1 * Distribution.rng.nextGaussian() * var;
+                if ( pGamma >= 0 && pGamma < 1 ) gamma0 = pGamma;
+            }
+
+            public void set( double[] value ) {
+                alpha0 = value[0];
+                gamma0 = value[1];
+            }
+        } );
     }
 
     public void sample(int[][] data, int[][] test) {
@@ -244,11 +300,16 @@ public class PDIA {
                     // Sample stick lengths for top-level restaurant
                     sample_sticks();
                 }
+                if (Distribution.rng.nextDouble() < .1) {
+                    sampleTopHyperparams(1.0);
+                }
+                if (Distribution.rng.nextDouble() < .1) {
+                    sampleBottomHyperparams(0.5);
+                }
                 sampleBeta(1.0);
-                System.out.println(beta);
                 count(data);
                 clearStates();
-                System.out.println(sticks.length + ": " + logLik() + ", " + PDIA.averageScore(score(test)));
+                System.out.println(sticks.length + ": " + logLik() + ", " + PDIA.averageScore(score(test)) + ", b " + beta + " g " + gamma + " a " + alpha + " g0 " + gamma0 + " a0 " + alpha0 );
             }
         }
     }
@@ -400,8 +461,10 @@ public class PDIA {
     public static void main(String[] args) {
         HashMap<Integer, Integer> alphabet = new HashMap<Integer, Integer>();
         try {
-            int[][] train = Util.loadText("/Users/davidpfau/Documents/Wood Group/pdia_git/data/aiw.train", alphabet);
-            int[][] test  = Util.loadText("/Users/davidpfau/Documents/Wood Group/pdia_git/data/aiw.test",  alphabet);
+            //int[][] train = Util.loadText("/Users/davidpfau/Documents/Wood Group/pdia_git/data/aiw.train", alphabet);
+            //int[][] test  = Util.loadText("/Users/davidpfau/Documents/Wood Group/pdia_git/data/aiw.test",  alphabet);
+            int[][] train = Util.loadText("/hpc/stats/users/dbp2112/PDIA/2011-06/data/aiw.train", alphabet);
+            int[][] test  = Util.loadText("/hpc/stats/users/dbp2112/PDIA/2011-06/data/aiw.test",  alphabet);
             //int[][] data = Util.loadText("/Users/davidpfau/Documents/Wood Group/pdia_git/data/even.dat",alphabet);
             //int[][] train = {data[0]};
             //int[][] test  = {data[1]};

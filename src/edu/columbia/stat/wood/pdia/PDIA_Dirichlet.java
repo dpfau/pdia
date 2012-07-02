@@ -104,6 +104,8 @@ public class PDIA_Dirichlet implements Serializable, PDIA {
         PDIA_Dirichlet[] ps = new PDIA_Dirichlet[samples];
         int i = 0;
         for (PDIA p : PDIA_Dirichlet.sample(nSymbols,data)) {
+            PDIA_Dirichlet pd = (PDIA_Dirichlet)p;
+            System.out.println("LL = " + p.logLik() + ", # = " + p.states().size() + ", beta = " + pd.beta + ", ");
             if (i < burnIn) {
                 System.out.println("Burn In Sample " + (i+1) + " of " + burnIn);
             }
@@ -317,7 +319,7 @@ public class PDIA_Dirichlet implements Serializable, PDIA {
     }
     
     // matlab friendly version
-    public double[] score(int init, Object[] data) {
+    public double[] mScore(int init, Object[] data) {
     	return score(init, Util.objectArrayTo2DIntArray(data));
     }
     
