@@ -71,12 +71,20 @@ class Restaurant: public Distribution<T> {
 	public:
 		Restaurant(Distribution<T> * d) { 
 			base = d; 
-			concentration = 1.0;
-			discount = 0.0;
+			concentration = 1;
+			discount = 0.5;
 		}
 		Value<T> * sample();
 		double score(T t) {}
 		void sample(ValuePtr<T> * v);
+		int nTables() { return tables.size(); }
+		int nCustomers() {
+			int n = 0;
+			for (int i = 0; i < tables.size(); i++ ) {
+				n += tables[i].size();
+			}
+			return n;
+		}
 };
 
 template <class T>
@@ -103,12 +111,22 @@ void Restaurant<T>::sample(ValuePtr<T> * v) {
 }
 
 int main() {
+	srand(time(NULL));
 	Random * r = new Random(); 
 	r->sample();
 	Restaurant<float> rest = Restaurant<float>(r);
-	vector<ValuePtr<float>* > * vv = new vector<ValuePtr<float>* >();
-	for (int i = 0; i < 100; i++) {
+	Restaurant<float> franch = Restaurant<float>(rest);
+	Restaurant<float> franch2 = Restaurant<float>(rest);
+	for (int i = 0; i < 1000; i++) {
 		ValuePtr<float> * v = new ValuePtr<float>();
-		rest.sample(v);
+		franch.sample(v);
 	}
+	cout << franch.nTables() << ", " << franch.nCustomers() << '\n';
+
+	for (int i = 0; i < 500; i++) {
+		ValuePtr<float> * v = new ValuePtr<float>();
+		franch2.sample(v);
+	}
+	cout << franch2.nTables() << ", " << franch2.nCustomers() << '\n';
+	cout << rest.nTables() << ", " << rest.nCustomers() << '\n';
 }
