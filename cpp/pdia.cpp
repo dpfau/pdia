@@ -36,7 +36,7 @@ class Constant: public Distribution<T> {
 		
 };
 
-class Random: public Distribution<Constant<float>* > {
+class Random: public Distribution<Distribution<float>* > {
 	public:
 		void sample(Datum<Constant<float> > * d) { d->value = new Constant<float>(rand()); }
 		double score(Constant<float>* t) { return 1; }	
@@ -54,21 +54,17 @@ class Customer: public Datum<T> {
 
 template <class T>
 class Table: public Distribution<T>, Datum<Distribution<T> > {
-	Distribution<T> * value;
 	vector<Customer<T> > customers;
 	public:
-		Table(Distribution<T> * t) {
-			customers = new vector<Customer<T> >(); 
-		}
+		Table(): Datum<Distribution<T> >() {}
 		void sample(Datum<T> * d) { 
-			if (value != NULL) {
-				value->sample(d);
+			if (Datum<Distribution<T> >::value != NULL) {
+				Datum<Distribution<T> >::value->sample(d);
 			}
 		}
-		double score(T t) { return value->score(t); }
-		void add(Customer<T> c) {
-			customers.add(c);
-		}
+		double score(T t) { return Datum<Distribution<T> >::value->score(t); }
+		int size() { return customers.size(); }
+		void add(Customer<T> c) { customers.push_back(c); }
 };
 
 template <class T>
@@ -79,6 +75,7 @@ class Restaurant: public Distribution<T> {
 	float discount;
 	int sampleTable();
 	public:
+		Restaurant(Distribution<Distribution<T>* >* d) { base = d; }
 		T sample(); // Sample without changing state
 		void sample(Customer<T> * c); // This changes the state of the Restaurant object.  Can avoid change of state by immediately removing the result, and later down the line it would be faster to have a sample-no-add method.
 		double score(T t);
@@ -98,19 +95,22 @@ int Restaurant<T>::sampleTable() {
 template <class T>
 void Restaurant<T>::sample(Customer<T> * c) {
 	int samp = sampleTable();
-	Table<T> table;
 	if (samp == 0) {
-		table = new Table<T>();
-		base->sample(table);
-		tables.add(table);
+		Table<T> table = Table<T>();
+		base->sample(&table);
+		tables.push_back(table);
+		table.sample(c);
+		table.add(*c);
 	} else {
-		table = tables[samp-1];
+		tables[samp-1].sample(c);
+		tables[samp-1].add(*c);
 	}
-	T t = table.sample();
-	table.add(*c);
-	return t;
 }
 
 int main() {
-	return 1;
+	Restaurant<float> base = Restaurant<float>(new Random());
+	for(int i=0; i<100; i++) {
+		Customer<float> * c = new Customer<float>();
+		base.sample(c);
+	}
 }
