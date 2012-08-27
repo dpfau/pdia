@@ -3,7 +3,7 @@
 using namespace std;
 
 int discreteSample(double * cdf, int size) {
-	double samp = cdf[size-1] * rand();
+	double samp = cdf[size-1] * (double)rand()/(double)RAND_MAX;
 	for (int i = 0; i < size; i++) {
 		if (cdf[i] > samp) {
 			return i;
@@ -69,7 +69,11 @@ class Restaurant: public Distribution<T> {
 	double concentration;
 	float discount;
 	public:
-		Restaurant(Distribution<T> * d) { base = d; }
+		Restaurant(Distribution<T> * d) { 
+			base = d; 
+			concentration = 1.0;
+			discount = 0.0;
+		}
 		Value<T> * sample();
 		double score(T t) {}
 		void sample(ValuePtr<T> * v);
